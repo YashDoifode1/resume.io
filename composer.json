@@ -1,0 +1,53 @@
+{
+    "name": "resume-io/resume-builder",
+    "description": "Professional Resume Builder with 10 Themes and PDF Generation",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Shweta Darvhekar",
+            "email": "shweta@resume.io",
+            "role": "Founder & Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "dompdf/dompdf": "^2.0"
+    },
+    "suggest": {
+        "mpdf/mpdf": "Alternative PDF generation library"
+    },
+    "autoload": {
+        "psr-4": {
+            "ResumeIO\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "platform-check": false
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php -r \"echo 'Resume.io installed successfully!\\n';\""
+        ],
+        "post-update-cmd": [
+            "@php -r \"echo 'Resume.io updated successfully!\\n';\""
+        ]
+    },
+    "keywords": [
+        "resume",
+        "cv",
+        "builder",
+        "pdf",
+        "generator",
+        "templates",
+        "professional"
+    ],
+    "homepage": "https://resume.io",
+    "support": {
+        "email": "support@resume.io",
+        "issues": "https://github.com/resume-io/resume-builder/issues"
+    }
+}

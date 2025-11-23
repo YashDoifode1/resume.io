@@ -1,0 +1,40 @@
+# ResumeBuilder Pro - Robots.txt
+
+# Allow all bots
+User-agent: *
+Allow: /
+
+# Disallow sensitive directories
+Disallow: /config/
+Disallow: /vendor/
+Disallow: /uploads/
+Disallow: /*.php$
+
+# Allow specific files
+Allow: /index.php
+
+# Crawl delay (optional)
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://yourdomain.com/resume/sitemap.xml
+
+# Specific bot rules
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

@@ -1,0 +1,49 @@
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+temp/
+
+# Vendor (Composer)
+vendor/
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Cache
+*.cache
+.cache/
+
+# Session
+session/
+tmp/
+
+# Node (if using npm)
+node_modules/
+package-lock.json
+npm-debug.log
+
+# Build files
+dist/
+build/
+
+# Testing
+coverage/
+.phpunit.result.cache
