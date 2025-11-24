@@ -1,72 +1,164 @@
 <?php
 /**
- * Resume Builder Form Page
+ * Resume Builder - Complete & Final Working Version
+ * Matches your original design exactly
  */
 
-// Session already started in index.php, no need to start again
+// Session already started in index.php
 
-// Initialize session data
 if (!isset($_SESSION['resume_data'])) {
     $_SESSION['resume_data'] = [
         'personal' => [
-            'fullName' => '',
-            'jobTitle' => '',
-            'profileSummary' => '',
-            'email' => '',
-            'phone' => '',
-            'address' => '',
-            'website' => '',
-            'linkedin' => '',
-            'github' => '',
+            'fullName' => '', 'jobTitle' => '', 'profileSummary' => '', 'email' => '',
+            'phone' => '', 'address' => '', 'website' => '', 'linkedin' => '', 'github' => '',
             'profilePicture' => ''
         ],
-        'workExperience' => [],
-        'education' => [],
-        'skills' => [],
-        'projects' => [],
-        'certifications' => [],
-        'languages' => [],
-        'interests' => ''
+        'workExperience' => [], 'education' => [], 'skills' => [], 'projects' => [],
+        'certifications' => [], 'languages' => [], 'interests' => ''
     ];
 }
 
-// Handle form submissions
+$data = &$_SESSION['resume_data'];
+
+// ========================================
+// HANDLE ALL FORM SUBMISSIONS
+// ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    if ($action === 'save_personal') {
-        $_SESSION['resume_data']['personal'] = [
-            'fullName' => $_POST['fullName'] ?? '',
-            'jobTitle' => $_POST['jobTitle'] ?? '',
-            'profileSummary' => $_POST['profileSummary'] ?? '',
-            'email' => $_POST['email'] ?? '',
-            'phone' => $_POST['phone'] ?? '',
-            'address' => $_POST['address'] ?? '',
-            'website' => $_POST['website'] ?? '',
-            'linkedin' => $_POST['linkedin'] ?? '',
-            'github' => $_POST['github'] ?? '',
-            'profilePicture' => $_SESSION['resume_data']['personal']['profilePicture'] ?? ''
+    if (in_array($action, ['save_personal', 'save_all'])) {
+        // Personal Info
+        $data['personal'] = [
+            'fullName' => trim($_POST['fullName'] ?? ''),
+            'jobTitle' => trim($_POST['jobTitle'] ?? ''),
+            'profileSummary' => trim($_POST['profileSummary'] ?? ''),
+            'email' => trim($_POST['email'] ?? ''),
+            'phone' => trim($_POST['phone'] ?? ''),
+            'address' => trim($_POST['address'] ?? ''),
+            'website' => trim($_POST['website'] ?? ''),
+            'linkedin' => trim($_POST['linkedin'] ?? ''),
+            'github' => trim($_POST['github'] ?? ''),
+            'profilePicture' => $data['personal']['profilePicture'] ?? ''
         ];
 
-        // Handle profile picture upload
-        if (isset($_FILES['profilePicture']) && $_FILES['profilePicture']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = UPLOADS_PATH;
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-
-            $fileName = 'profile_' . time() . '_' . basename($_FILES['profilePicture']['name']);
-            $filePath = $uploadDir . $fileName;
-
-            if (move_uploaded_file($_FILES['profilePicture']['tmp_name'], $filePath)) {
-                $_SESSION['resume_data']['personal']['profilePicture'] = UPLOAD_DIRECTORY . $fileName;
+        // Profile Picture Upload
+        if (!empty($_FILES['profilePicture']['name']) && $_FILES['profilePicture']['error'] === UPLOAD_ERR_OK) {
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $ext = strtolower(pathinfo($_FILES['profilePicture']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, $allowed) && $_FILES['profilePicture']['size'] <= 5 * 1024 * 1024) {
+                $uploadDir = UPLOADS_PATH;
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                $fileName = 'profile_' . session_id() . '_' . time() . '.' . $ext;
+                $filePath = $uploadDir . $fileName;
+                if (move_uploaded_file($_FILES['profilePicture']['tmp_name'], $filePath)) {
+                    $data['personal']['profilePicture'] = UPLOAD_DIRECTORY . $fileName;
+                }
             }
         }
-        
-        // Set default profile picture if none uploaded
-        if (empty($_SESSION['resume_data']['personal']['profilePicture'])) {
-            $_SESSION['resume_data']['personal']['profilePicture'] = ASSETS_URL . 'images/default-profile.png';
+
+        if (empty($data['personal']['profilePicture'])) {
+            $data['personal']['profilePicture'] = ASSETS_URL . 'images/default-profile.png';
         }
+    }
+
+    if ($action === 'save_all') {
+        // Work Experience
+        if (isset($_POST['company']) && is_array($_POST['company'])) {
+            $work = [];
+            foreach ($_POST['company'] as $i => $c) {
+                if (!empty(trim($c))) {
+                    $work[] = [
+                        'company' => trim($c),
+                        'job_role' => trim($_POST['job_role'][$i] ?? ''),
+                        'start_date' => $_POST['start_date'][$i] ?? '',
+                        'end_date' => $_POST['end_date'][$i] ?? '',
+                        'responsibilities' => trim($_POST['responsibilities'][$i] ?? '')
+                    ];
+                }
+            }
+            $data['workExperience'] = $work;
+        }
+
+        // Education
+        if (isset($_POST['degree']) && is_array($_POST['degree'])) {
+            $edu = [];
+            foreach ($_POST['degree'] as $i => $d) {
+                if (!empty(trim($d))) {
+                    $edu[] = [
+                        'degree' => trim($d),
+                        'institute' => trim($_POST['institute'][$i] ?? ''),
+                        'start_year' => $_POST['start_year'][$i] ?? '',
+                        'end_year' => $_POST['end_year'][$i] ?? '',
+                        'cgpa' => trim($_POST['cgpa'][$i] ?? '')
+                    ];
+                }
+            }
+            $data['education'] = $edu;
+        }
+
+        // Skills
+        if (isset($_POST['skill_name']) && is_array($_POST['skill_name'])) {
+            $skills = [];
+            foreach ($_POST['skill_name'] as $i => $name) {
+                if (!empty(trim($name))) {
+                    $skills[] = [
+                        'name' => trim($name),
+                        'level' => $_POST['skill_level'][$i] ?? 'Intermediate'
+                    ];
+                }
+            }
+            $data['skills'] = $skills;
+        }
+
+        // Projects
+        if (isset($_POST['project_name']) && is_array($_POST['project_name'])) {
+            $proj = [];
+            foreach ($_POST['project_name'] as $i => $name) {
+                if (!empty(trim($name))) {
+                    $proj[] = [
+                        'name' => trim($name),
+                        'description' => trim($_POST['project_description'][$i] ?? ''),
+                        'technologies' => trim($_POST['technologies'][$i] ?? ''),
+                        'link' => trim($_POST['project_link'][$i] ?? '')
+                    ];
+                }
+            }
+            $data['projects'] = $proj;
+        }
+
+        // Certifications
+        if (isset($_POST['cert_title']) && is_array($_POST['cert_title'])) {
+            $certs = [];
+            foreach ($_POST['cert_title'] as $i => $title) {
+                if (!empty(trim($title))) {
+                    $certs[] = [
+                        'title' => trim($title),
+                        'issued_by' => trim($_POST['issued_by'][$i] ?? ''),
+                        'year' => $_POST['cert_year'][$i] ?? ''
+                    ];
+                }
+            }
+            $data['certifications'] = $certs;
+        }
+
+        // Languages
+        if (isset($_POST['language_name']) && is_array($_POST['language_name'])) {
+            $langs = [];
+            foreach ($_POST['language_name'] as $i => $name) {
+                if (!empty(trim($name))) {
+                    $langs[] = [
+                        'name' => trim($name),
+                        'proficiency' => $_POST['proficiency'][$i] ?? 'Intermediate'
+                    ];
+                }
+            }
+            $data['languages'] = $langs;
+        }
+
+        // Interests
+        $data['interests'] = trim($_POST['interests'] ?? '');
+
+        $_SESSION['success_message'] = "All changes saved successfully!";
     }
 }
 
@@ -74,8 +166,13 @@ $page_title = 'Resume Builder';
 $page_description = 'Create your professional resume with our easy-to-use resume builder.';
 $page_css = 'builder.css';
 $page_js = 'builder.js';
-$data = $_SESSION['resume_data'];
 ?>
+
+<?php if (isset($_SESSION['success_message'])): ?>
+<div class="alert alert-success" style="margin: 20px 0; padding: 16px; border-radius: 8px; background: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
+    <?php echo $_SESSION['success_message']; unset($_SESSION['success_message']); ?>
+</div>
+<?php endif; ?>
 
 <!-- Hero Section -->
 <section class="hero">
@@ -94,16 +191,15 @@ $data = $_SESSION['resume_data'];
                 <div class="sidebar-sticky">
                     <h3>Resume Sections</h3>
                     <ul class="section-nav">
-                        <li><a href="#personal" class="section-link active">👤 Personal Info</a></li>
-                        <li><a href="#work" class="section-link">💼 Work Experience</a></li>
-                        <li><a href="#education" class="section-link">🎓 Education</a></li>
-                        <li><a href="#skills" class="section-link">⚡ Skills</a></li>
-                        <li><a href="#projects" class="section-link">🚀 Projects</a></li>
-                        <li><a href="#certifications" class="section-link">🏆 Certifications</a></li>
-                        <li><a href="#languages" class="section-link">🌍 Languages</a></li>
-                        <li><a href="#interests" class="section-link">❤️ Interests</a></li>
+                        <li><a href="#personal" class="section-link active">Personal Info</a></li>
+                        <li><a href="#work" class="section-link">Work Experience</a></li>
+                        <li><a href="#education" class="section-link">Education</a></li>
+                        <li><a href="#skills" class="section-link">Skills</a></li>
+                        <li><a href="#projects" class="section-link">Projects</a></li>
+                        <li><a href="#certifications" class="section-link">Certifications</a></li>
+                        <li><a href="#languages" class="section-link">Languages</a></li>
+                        <li><a href="#interests" class="section-link">Interests</a></li>
                     </ul>
-
                     <div style="margin-top: 32px;">
                         <a href="<?php echo BASE_URL; ?>?page=preview" class="btn btn-primary btn-block">Preview Resume</a>
                     </div>
@@ -113,10 +209,11 @@ $data = $_SESSION['resume_data'];
             <!-- Main Form -->
             <div class="builder-main" style="grid-column: span 3;">
                 <form id="resume-builder-form" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="save_all">
+
                     <!-- Personal Information Section -->
                     <div id="personal" class="form-section">
                         <h2>Personal Information</h2>
-                        <input type="hidden" name="action" value="save_personal">
 
                         <div class="form-row">
                             <div class="form-group">
@@ -180,53 +277,45 @@ $data = $_SESSION['resume_data'];
                                 <?php endif; ?>
                             </div>
                         </div>
-
-                        <button type="submit" class="btn btn-success">Save Personal Information</button>
                     </div>
 
-                    <!-- Work Experience Section -->
+                    <!-- Dynamic Sections -->
                     <div id="work" class="form-section">
                         <h2>Work Experience</h2>
                         <div id="work-experience-items"></div>
                         <button type="button" id="add-work-experience" class="btn btn-primary">+ Add Work Experience</button>
                     </div>
 
-                    <!-- Education Section -->
                     <div id="education" class="form-section">
                         <h2>Education</h2>
                         <div id="education-items"></div>
                         <button type="button" id="add-education" class="btn btn-primary">+ Add Education</button>
                     </div>
 
-                    <!-- Skills Section -->
                     <div id="skills" class="form-section">
                         <h2>Skills</h2>
                         <div id="skills-items"></div>
                         <button type="button" id="add-skill" class="btn btn-primary">+ Add Skill</button>
                     </div>
 
-                    <!-- Projects Section -->
                     <div id="projects" class="form-section">
                         <h2>Projects</h2>
                         <div id="projects-items"></div>
                         <button type="button" id="add-project" class="btn btn-primary">+ Add Project</button>
                     </div>
 
-                    <!-- Certifications Section -->
-                    <div id="certifications" class="form-section">
+                    <div id="certifications" class="form-section'">
                         <h2>Certifications</h2>
                         <div id="certifications-items"></div>
                         <button type="button" id="add-certification" class="btn btn-primary">+ Add Certification</button>
                     </div>
 
-                    <!-- Languages Section -->
                     <div id="languages" class="form-section">
                         <h2>Languages</h2>
                         <div id="languages-items"></div>
                         <button type="button" id="add-language" class="btn btn-primary">+ Add Language</button>
                     </div>
 
-                    <!-- Interests Section -->
                     <div id="interests" class="form-section">
                         <h2>Interests</h2>
                         <div class="form-group">
@@ -234,7 +323,16 @@ $data = $_SESSION['resume_data'];
                             <textarea id="interests" name="interests" rows="4" placeholder="e.g., Web Development, AI, Machine Learning, Open Source"><?php echo htmlspecialchars($data['interests']); ?></textarea>
                             <div class="form-help">Separate interests with commas or line breaks</div>
                         </div>
-                        <button type="submit" class="btn btn-success">Save Interests</button>
+                    </div>
+
+                    <!-- Final Save Button -->
+                    <div style="margin: 48px 0; text-align: center; padding: 32px 0; border-top: 2px solid var(--color-border);">
+                        <button type="submit" class="btn btn-success btn-lg" style="padding: 16px 50px; font-size: 18px;">
+                            Save All Changes
+                        </button>
+                        <a href="<?php echo BASE_URL; ?>?page=preview" class="btn btn-primary btn-lg" style="margin-left: 20px; padding: 16px 50px; font-size: 18px;">
+                            Preview Resume →
+                        </a>
                     </div>
                 </form>
             </div>
@@ -242,87 +340,26 @@ $data = $_SESSION['resume_data'];
     </div>
 </section>
 
+<!-- PASS DATA TO JS -->
+<script>
+    window.resumeData = <?php echo json_encode($data); ?>;
+</script>
+<script src="<?php echo ASSETS_URL; ?>js/builder.js"></script>
+
+<!-- Your original styles -->
 <style>
-    .builder-sidebar {
-        position: sticky;
-        top: 100px;
-        height: fit-content;
-    }
-
-    .sidebar-sticky {
-        background: var(--color-bg-secondary);
-        padding: 24px;
-        border-radius: 12px;
-    }
-
-    .sidebar-sticky h3 {
-        margin-bottom: 16px;
-        color: var(--color-primary);
-    }
-
-    .section-nav {
-        list-style: none;
-        padding: 0;
-    }
-
-    .section-nav li {
-        margin-bottom: 8px;
-    }
-
-    .section-link {
-        display: block;
-        padding: 8px 12px;
-        border-radius: 6px;
-        color: var(--color-text-secondary);
-        transition: all 0.3s ease;
-    }
-
-    .section-link:hover,
-    .section-link.active {
-        background-color: var(--color-primary);
-        color: white;
-    }
-
-    .form-section {
-        margin-bottom: 48px;
-        padding-bottom: 48px;
-        border-bottom: 2px solid var(--color-border);
-    }
-
-    .form-section:last-child {
-        border-bottom: none;
-    }
-
-    .form-section h2 {
-        color: var(--color-primary);
-        margin-bottom: 24px;
-        font-size: 24px;
-    }
-
-    .form-item {
-        margin-bottom: 16px;
-    }
-
-    .form-item-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .form-item-header h4 {
-        margin: 0;
-    }
-
+    .builder-sidebar { position: sticky; top: 100px; height: fit-content; }
+    .sidebar-sticky { background: var(--color-bg-secondary); padding: 24px; border-radius: 12px; }
+    .sidebar-sticky h3 { margin-bottom: 16px; color: var(--color-primary); }
+    .section-nav { list-style: none; padding: 0; }
+    .section-nav li { margin-bottom: 8px; }
+    .section-link { display: block; padding: 8px 12px; border-radius: 6px; color: var(--color-text-secondary); transition: all 0.3s ease; }
+    .section-link:hover, .section-link.active { background-color: var(--color-primary); color: white; }
+    .form-section { margin-bottom: 48px; padding-bottom: 48px; border-bottom: 2px solid var(--color-border); }
+    .form-section:last-child { border-bottom: none; }
+    .form-section h2 { color: var(--color-primary); margin-bottom: 24px; font-size: 24px; }
     @media (max-width: 1024px) {
-        .builder-main {
-            grid-column: span 4 !important;
-        }
-
-        .builder-sidebar {
-            display: none;
-        }
+        .builder-main { grid-column: span 4 !important; }
+        .builder-sidebar { display: none; }
     }
 </style>

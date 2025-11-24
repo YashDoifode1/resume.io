@@ -2,6 +2,8 @@
  * Resume Builder - Form Handler
  * 
  * Handles dynamic form sections and data management
+ * 
+ * Note: SectionSaveManager is defined in main.js for global availability
  */
 
 'use strict';
@@ -383,11 +385,22 @@ function autoSaveForm() {
     const form = document.getElementById('resume-builder-form');
     if (!form) return;
 
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
+    try {
+        const data = {};
+        const inputs = form.querySelectorAll('input, textarea, select');
+        
+        inputs.forEach(input => {
+            // Skip file inputs and hidden action fields
+            if (input.type !== 'file' && input.name && input.name !== 'action') {
+                data[input.name] = input.value;
+            }
+        });
 
-    Storage.set('resume_builder_draft', data);
-    console.log('Form auto-saved');
+        Storage.set('resume_builder_draft', data);
+        console.log('Form auto-saved');
+    } catch (e) {
+        console.warn('Auto-save error:', e.message);
+    }
 }
 
 // Auto-save every 30 seconds
@@ -404,14 +417,23 @@ function recoverFormData() {
     const form = document.getElementById('resume-builder-form');
     if (!form) return;
 
-    Object.keys(savedData).forEach(key => {
-        const input = form.querySelector(`[name="${key}"]`);
-        if (input) {
-            input.value = savedData[key];
-        }
-    });
+    try {
+        Object.keys(savedData).forEach(key => {
+            try {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input && input.type !== 'file') {
+                    input.value = savedData[key];
+                }
+            } catch (e) {
+                // Skip this field if there's an error
+                console.warn(`Could not recover field ${key}:`, e.message);
+            }
+        });
 
-    showAlert('Form data recovered from last session', 'info');
+        showAlert('Form data recovered from last session', 'info');
+    } catch (e) {
+        console.warn('Form recovery error:', e.message);
+    }
 }
 
 // Recover on page load
@@ -447,6 +469,40 @@ function downloadPDF(themeName = 'classic') {
     document.body.appendChild(downloadForm);
     downloadForm.submit();
     document.body.removeChild(downloadForm);
+}
+
+// ============================================
+// PowerPoint Download
+// ============================================
+
+async function downloadPowerPoint() {
+    try {
+        showAlert('Generating PowerPoint presentation...', 'info');
+        
+        const response = await fetch('api/download-ppt.php', {
+            method: 'GET'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate PowerPoint');
+        }
+        
+        // Create blob and download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'resume_' + new Date().getTime() + '.pptx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showAlert('PowerPoint downloaded successfully!', 'success');
+    } catch (error) {
+        console.error('PPT download error:', error);
+        showAlert('Error downloading PowerPoint: ' + error.message, 'danger');
+    }
 }
 
 // ============================================
