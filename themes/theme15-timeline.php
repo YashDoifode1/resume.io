@@ -27,13 +27,22 @@ if (!function_exists('getProfileImage')) {
                 
                 <div class="contact-info">
                     <?php if (!empty($data['personal']['email'])): ?>
-                        <span>📧 <?php echo htmlspecialchars($data['personal']['email']); ?></span>
+                        <span class="contact-item">
+                            <span class="text-icon">E:</span>
+                            <?php echo htmlspecialchars($data['personal']['email']); ?>
+                        </span>
                     <?php endif; ?>
                     <?php if (!empty($data['personal']['phone'])): ?>
-                        <span>📱 <?php echo htmlspecialchars($data['personal']['phone']); ?></span>
+                        <span class="contact-item">
+                            <span class="text-icon">P:</span>
+                            <?php echo htmlspecialchars($data['personal']['phone']); ?>
+                        </span>
                     <?php endif; ?>
                     <?php if (!empty($data['personal']['address'])): ?>
-                        <span>📍 <?php echo htmlspecialchars($data['personal']['address']); ?></span>
+                        <span class="contact-item">
+                            <span class="text-icon">A:</span>
+                            <?php echo htmlspecialchars($data['personal']['address']); ?>
+                        </span>
                     <?php endif; ?>
                 </div>
 
@@ -233,6 +242,18 @@ if (!function_exists('getProfileImage')) {
         gap: 15px;
         font-size: 13px;
         margin-bottom: 10px;
+    }
+
+    .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .text-icon {
+        font-weight: bold;
+        color: #ff6b6b;
+        font-size: 12px;
     }
 
     .social-links {

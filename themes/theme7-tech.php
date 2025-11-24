@@ -24,10 +24,16 @@ if (!isset($data)) {
                 
                 <div class="contact-info">
                     <?php if (!empty($data['personal']['email'])): ?>
-                        <span>📧 <?php echo htmlspecialchars($data['personal']['email']); ?></span>
+                        <span class="contact-item">
+                            <span class="text-icon">E:</span>
+                            <?php echo htmlspecialchars($data['personal']['email']); ?>
+                        </span>
                     <?php endif; ?>
                     <?php if (!empty($data['personal']['phone'])): ?>
-                        <span>📱 <?php echo htmlspecialchars($data['personal']['phone']); ?></span>
+                        <span class="contact-item">
+                            <span class="text-icon">P:</span>
+                            <?php echo htmlspecialchars($data['personal']['phone']); ?>
+                        </span>
                     <?php endif; ?>
                 </div>
 
@@ -185,6 +191,18 @@ if (!isset($data)) {
         gap: 12px;
         font-size: 12px;
         margin-bottom: 10px;
+    }
+
+    .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .text-icon {
+        font-weight: bold;
+        color: #00d4ff;
+        font-size: 12px;
     }
 
     .social-links {
