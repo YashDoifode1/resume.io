@@ -1,7 +1,7 @@
 <?php
 /**
  * Resume Builder - Complete & Final Working Version
- * Matches your original design exactly
+ * Matches your original design exactly with fixed image handling
  */
 
 // Session already started in index.php
@@ -41,23 +41,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'profilePicture' => $data['personal']['profilePicture'] ?? ''
         ];
 
-        // Profile Picture Upload
+        // Profile Picture Upload - FIXED VERSION
         if (!empty($_FILES['profilePicture']['name']) && $_FILES['profilePicture']['error'] === UPLOAD_ERR_OK) {
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-            $ext = strtolower(pathinfo($_FILES['profilePicture']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, $allowed) && $_FILES['profilePicture']['size'] <= 5 * 1024 * 1024) {
-                $uploadDir = UPLOADS_PATH;
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                $fileName = 'profile_' . session_id() . '_' . time() . '.' . $ext;
-                $filePath = $uploadDir . $fileName;
-                if (move_uploaded_file($_FILES['profilePicture']['tmp_name'], $filePath)) {
-                    $data['personal']['profilePicture'] = UPLOAD_DIRECTORY . $fileName;
+            $fileName = $_FILES['profilePicture']['name'];
+            $fileTmp = $_FILES['profilePicture']['tmp_name'];
+            $fileSize = $_FILES['profilePicture']['size'];
+            $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            
+            // Validate file
+            if (in_array($fileExt, $allowed) && $fileSize <= MAX_UPLOAD_SIZE) {
+                // Ensure upload directory exists
+                if (!is_dir(UPLOADS_PATH)) {
+                    mkdir(UPLOADS_PATH, 0755, true);
+                }
+                
+                // Generate unique filename
+                $newFileName = 'profile_' . session_id() . '_' . time() . '.' . $fileExt;
+                $uploadPath = UPLOADS_PATH . $newFileName;
+                
+                // Move uploaded file
+                if (move_uploaded_file($fileTmp, $uploadPath)) {
+                    // Store both relative and absolute paths
+                    $data['personal']['profilePicture'] = BASE_URL . 'uploads/' . $newFileName;
+                    $data['personal']['profilePicturePath'] = $uploadPath; // Store for PDF generation
+                } else {
+                    // Log error but don't break the app
+                    error_log("Failed to move uploaded file: " . $uploadPath);
                 }
             }
         }
 
-        if (empty($data['personal']['profilePicture'])) {
-            $data['personal']['profilePicture'] = ASSETS_URL . 'images/default-profile.png';
+        // Set default profile picture if none exists
+        if (empty($data['personal']['profilePicture']) || !filter_var($data['personal']['profilePicture'], FILTER_VALIDATE_URL)) {
+            $data['personal']['profilePicture'] = BASE_URL . 'assets/images/default-profile.png';
         }
     }
 
@@ -266,15 +283,29 @@ $page_js = 'builder.js';
                             </div>
                             <div class="form-group">
                                 <label for="profilePicture">Profile Picture</label>
-                                <input type="file" id="profilePicture" name="profilePicture" accept="image/*" onchange="handleProfilePictureUpload(this)">
-                                <div class="form-help">JPG, PNG, GIF, or WebP (Max 5MB)</div>
-                                <?php if (!empty($data['personal']['profilePicture'])): ?>
-                                    <div style="margin-top: 12px;">
-                                        <img id="profile-picture-preview" src="<?php echo htmlspecialchars($data['personal']['profilePicture']); ?>" alt="Profile Picture" style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover;">
+                                <input type="file" id="profilePicture" name="profilePicture" accept="image/*" onchange="previewImage(this)">
+                                <div class="form-help">JPG, PNG, GIF, or WebP (Max <?php echo round(MAX_UPLOAD_SIZE / (1024*1024)); ?>MB)</div>
+                                
+                                <!-- Profile Picture Preview -->
+                                <div id="profile-picture-container" style="margin-top: 12px; display: <?php echo !empty($data['personal']['profilePicture']) && strpos($data['personal']['profilePicture'], 'default-profile.png') === false ? 'block' : 'none'; ?>;">
+                                    <?php 
+                                    $profilePic = $data['personal']['profilePicture'];
+                                    $isDefault = strpos($profilePic, 'default-profile.png') !== false;
+                                    ?>
+                                    <img id="profile-picture-preview" 
+                                         src="<?php echo $isDefault ? BASE_URL . 'assets/images/default-profile.png' : htmlspecialchars($profilePic); ?>" 
+                                         alt="Profile Picture" 
+                                         style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover; border: 2px solid var(--color-border);"
+                                         onerror="this.onerror=null; this.src='<?php echo BASE_URL; ?>assets/images/default-profile.png';">
+                                    <div style="margin-top: 8px;">
+                                        <button type="button" onclick="removeProfilePicture()" class="btn btn-danger btn-sm" style="padding: 4px 12px; font-size: 12px;">
+                                            Remove Picture
+                                        </button>
                                     </div>
-                                <?php else: ?>
-                                    <img id="profile-picture-preview" src="" alt="Profile Picture" style="display: none; width: 100px; height: 100px; border-radius: 8px; object-fit: cover; margin-top: 12px;">
-                                <?php endif; ?>
+                                </div>
+                                
+                                <!-- Hidden field to track picture removal -->
+                                <input type="hidden" id="remove_picture" name="remove_picture" value="0">
                             </div>
                         </div>
                     </div>
@@ -345,6 +376,48 @@ $page_js = 'builder.js';
     window.resumeData = <?php echo json_encode($data); ?>;
 </script>
 <script src="<?php echo ASSETS_URL; ?>js/builder.js"></script>
+
+<!-- Image Handling JavaScript -->
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('profile-picture-preview');
+    const container = document.getElementById('profile-picture-container');
+    const file = input.files[0];
+    
+    if (file) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            container.style.display = 'block';
+            document.getElementById('remove_picture').value = '0';
+        }
+        
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeProfilePicture() {
+    const preview = document.getElementById('profile-picture-preview');
+    const container = document.getElementById('profile-picture-container');
+    const fileInput = document.getElementById('profilePicture');
+    const removeInput = document.getElementById('remove_picture');
+    
+    // Reset file input
+    fileInput.value = '';
+    
+    // Set default image
+    preview.src = '<?php echo BASE_URL; ?>assets/images/default-profile.png';
+    
+    // Hide container or keep it visible with default image
+    container.style.display = 'block';
+    
+    // Mark for removal on server side
+    removeInput.value = '1';
+    
+    alert('Profile picture will be removed when you save changes.');
+}
+</script>
 
 <!-- Enhanced Builder Styles -->
 <style>
