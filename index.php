@@ -23,7 +23,7 @@ $logger->logVisitor();
 $page = isset($_GET['page']) ? sanitize_input($_GET['page']) : 'home';
 
 // List of valid pages
-$valid_pages = ['home', 'about', 'builder', 'preview', 'contact', 'faq', 'privacy', 'terms', 'download'];
+$valid_pages = ['home', 'about', 'builder', 'preview', 'contact', 'faq', 'privacy', 'terms', 'download','new','ui'];
 
 // Handle PDF download separately (before header inclusion)
 if ($page === 'download') {
@@ -112,6 +112,14 @@ if (!in_array($page, $valid_pages)) {
 switch ($page) {
     case 'home':
         $page_title = 'Home';
+        $page_description = 'Create professional resumes in minutes with our AI-powered resume builder.';
+        break;
+    case 'new':
+        $page_title = 'new';
+        $page_description = 'Create professional resumes in minutes with our AI-powered resume builder.';
+        break;
+    case 'ui':
+        $page_title = 'ui';
         $page_description = 'Create professional resumes in minutes with our AI-powered resume builder.';
         break;
     case 'about':
