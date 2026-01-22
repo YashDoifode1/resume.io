@@ -42,8 +42,16 @@ function generatePlaceholderImage($name = 'User', $size = 200) {
  * Get profile image or placeholder
  */
 function getProfileImage($imageUrl = '', $name = 'User') {
-    if (!empty($imageUrl) && file_exists($imageUrl)) {
-        return $imageUrl;
+    // Check if it's a URL
+    if (!empty($imageUrl)) {
+        // If it's a full URL, use it
+        if (strpos($imageUrl, 'http') === 0) {
+            return $imageUrl;
+        }
+        // If it's a relative path, convert to absolute
+        if (defined('BASE_URL')) {
+            return BASE_URL . ltrim($imageUrl, '/');
+        }
     }
     return generatePlaceholderImage($name);
 }

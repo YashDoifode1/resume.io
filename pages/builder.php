@@ -1,7 +1,7 @@
 <?php
 /**
- * Resume Builder - Complete & Final Working Version
- * Matches your original design exactly
+ * Resume Builder - NO VALIDATION VERSION
+ * Uses user data exactly as provided
  */
 
 // Session already started in index.php
@@ -9,164 +9,166 @@
 if (!isset($_SESSION['resume_data'])) {
     $_SESSION['resume_data'] = [
         'personal' => [
-            'fullName' => '', 'jobTitle' => '', 'profileSummary' => '', 'email' => '',
-            'phone' => '', 'address' => '', 'website' => '', 'linkedin' => '', 'github' => '',
+            'fullName' => '',
+            'jobTitle' => '',
+            'profileSummary' => '',
+            'email' => '',
+            'phone' => '',
+            'address' => '',
+            'website' => '',
+            'linkedin' => '',
+            'github' => '',
             'profilePicture' => ''
         ],
-        'workExperience' => [], 'education' => [], 'skills' => [], 'projects' => [],
-        'certifications' => [], 'languages' => [], 'interests' => ''
+        'workExperience' => [],
+        'education' => [],
+        'skills' => [],
+        'projects' => [],
+        'certifications' => [],
+        'languages' => [],
+        'interests' => ''
     ];
 }
 
 $data = &$_SESSION['resume_data'];
 
 // ========================================
-// HANDLE ALL FORM SUBMISSIONS
+// HANDLE FORM SUBMISSION (NO VALIDATION)
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    if (in_array($action, ['save_personal', 'save_all'])) {
-        // Personal Info
+    if ($action === 'save_personal' || $action === 'save_all') {
+
+        // Personal Info (NO FILTERING)
         $data['personal'] = [
-            'fullName' => trim($_POST['fullName'] ?? ''),
-            'jobTitle' => trim($_POST['jobTitle'] ?? ''),
-            'profileSummary' => trim($_POST['profileSummary'] ?? ''),
-            'email' => trim($_POST['email'] ?? ''),
-            'phone' => trim($_POST['phone'] ?? ''),
-            'address' => trim($_POST['address'] ?? ''),
-            'website' => trim($_POST['website'] ?? ''),
-            'linkedin' => trim($_POST['linkedin'] ?? ''),
-            'github' => trim($_POST['github'] ?? ''),
+            'fullName' => $_POST['fullName'] ?? '',
+            'jobTitle' => $_POST['jobTitle'] ?? '',
+            'profileSummary' => $_POST['profileSummary'] ?? '',
+            'email' => $_POST['email'] ?? '',
+            'phone' => $_POST['phone'] ?? '',
+            'address' => $_POST['address'] ?? '',
+            'website' => $_POST['website'] ?? '',
+            'linkedin' => $_POST['linkedin'] ?? '',
+            'github' => $_POST['github'] ?? '',
             'profilePicture' => $data['personal']['profilePicture'] ?? ''
         ];
 
-        // Profile Picture Upload
-        if (!empty($_FILES['profilePicture']['name']) && $_FILES['profilePicture']['error'] === UPLOAD_ERR_OK) {
-            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-            $ext = strtolower(pathinfo($_FILES['profilePicture']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, $allowed) && $_FILES['profilePicture']['size'] <= 5 * 1024 * 1024) {
-                $uploadDir = UPLOADS_PATH;
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                $fileName = 'profile_' . session_id() . '_' . time() . '.' . $ext;
-                $filePath = $uploadDir . $fileName;
-                if (move_uploaded_file($_FILES['profilePicture']['tmp_name'], $filePath)) {
-                    $data['personal']['profilePicture'] = UPLOAD_DIRECTORY . $fileName;
-                }
+        // Profile Picture Upload (NO VALIDATION)
+        if (!empty($_FILES['profilePicture']['name'])) {
+            $uploadDir = UPLOADS_PATH;
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
             }
-        }
 
-        if (empty($data['personal']['profilePicture'])) {
-            $data['personal']['profilePicture'] = ASSETS_URL . 'images/default-profile.png';
+            $fileName = time() . '_' . $_FILES['profilePicture']['name'];
+            $filePath = $uploadDir . $fileName;
+
+            if (move_uploaded_file($_FILES['profilePicture']['tmp_name'], $filePath)) {
+                $data['personal']['profilePicture'] = UPLOAD_DIRECTORY . $fileName;
+            }
         }
     }
 
     if ($action === 'save_all') {
+
         // Work Experience
-        if (isset($_POST['company']) && is_array($_POST['company'])) {
-            $work = [];
-            foreach ($_POST['company'] as $i => $c) {
-                if (!empty(trim($c))) {
-                    $work[] = [
-                        'company' => trim($c),
-                        'job_role' => trim($_POST['job_role'][$i] ?? ''),
-                        'start_date' => $_POST['start_date'][$i] ?? '',
-                        'end_date' => $_POST['end_date'][$i] ?? '',
-                        'responsibilities' => trim($_POST['responsibilities'][$i] ?? '')
-                    ];
-                }
+        $data['workExperience'] = [];
+        if (isset($_POST['company'])) {
+            foreach ($_POST['company'] as $i => $v) {
+                $data['workExperience'][] = [
+                    'company' => $_POST['company'][$i] ?? '',
+                    'job_role' => $_POST['job_role'][$i] ?? '',
+                    'start_date' => $_POST['start_date'][$i] ?? '',
+                    'end_date' => $_POST['end_date'][$i] ?? '',
+                    'responsibilities' => $_POST['responsibilities'][$i] ?? ''
+                ];
             }
-            $data['workExperience'] = $work;
         }
 
         // Education
-        if (isset($_POST['degree']) && is_array($_POST['degree'])) {
-            $edu = [];
-            foreach ($_POST['degree'] as $i => $d) {
-                if (!empty(trim($d))) {
-                    $edu[] = [
-                        'degree' => trim($d),
-                        'institute' => trim($_POST['institute'][$i] ?? ''),
-                        'start_year' => $_POST['start_year'][$i] ?? '',
-                        'end_year' => $_POST['end_year'][$i] ?? '',
-                        'cgpa' => trim($_POST['cgpa'][$i] ?? '')
-                    ];
-                }
+        $data['education'] = [];
+        if (isset($_POST['degree'])) {
+            foreach ($_POST['degree'] as $i => $v) {
+                $data['education'][] = [
+                    'degree' => $_POST['degree'][$i] ?? '',
+                    'institute' => $_POST['institute'][$i] ?? '',
+                    'start_year' => $_POST['start_year'][$i] ?? '',
+                    'end_year' => $_POST['end_year'][$i] ?? '',
+                    'cgpa' => $_POST['cgpa'][$i] ?? ''
+                ];
             }
-            $data['education'] = $edu;
         }
 
         // Skills
-        if (isset($_POST['skill_name']) && is_array($_POST['skill_name'])) {
-            $skills = [];
-            foreach ($_POST['skill_name'] as $i => $name) {
-                if (!empty(trim($name))) {
-                    $skills[] = [
-                        'skillName' => trim($name),
-                        'level' => $_POST['skill_level'][$i] ?? 'Intermediate'
-                    ];
-                }
+        $data['skills'] = [];
+        if (isset($_POST['skill_name'])) {
+            foreach ($_POST['skill_name'] as $i => $v) {
+                $data['skills'][] = [
+                    'skillName' => $_POST['skill_name'][$i] ?? '',
+                    'level' => $_POST['skill_level'][$i] ?? ''
+                ];
             }
-            $data['skills'] = $skills;
         }
 
         // Projects
-        if (isset($_POST['project_name']) && is_array($_POST['project_name'])) {
-            $proj = [];
-            foreach ($_POST['project_name'] as $i => $name) {
-                if (!empty(trim($name))) {
-                    $proj[] = [
-                        'name' => trim($name),
-                        'description' => trim($_POST['project_description'][$i] ?? ''),
-                        'technologies' => trim($_POST['technologies'][$i] ?? ''),
-                        'link' => trim($_POST['project_link'][$i] ?? '')
-                    ];
-                }
+        $data['projects'] = [];
+        if (isset($_POST['project_name'])) {
+            foreach ($_POST['project_name'] as $i => $v) {
+                $data['projects'][] = [
+                    'name' => $_POST['project_name'][$i] ?? '',
+                    'description' => $_POST['project_description'][$i] ?? '',
+                    'technologies' => $_POST['technologies'][$i] ?? '',
+                    'link' => $_POST['project_link'][$i] ?? ''
+                ];
             }
-            $data['projects'] = $proj;
         }
 
         // Certifications
-        if (isset($_POST['cert_title']) && is_array($_POST['cert_title'])) {
-            $certs = [];
-            foreach ($_POST['cert_title'] as $i => $title) {
-                if (!empty(trim($title))) {
-                    $certs[] = [
-                        'title' => trim($title),
-                        'issued_by' => trim($_POST['issued_by'][$i] ?? ''),
-                        'year' => $_POST['cert_year'][$i] ?? ''
-                    ];
-                }
+        $data['certifications'] = [];
+        if (isset($_POST['cert_title'])) {
+            foreach ($_POST['cert_title'] as $i => $v) {
+                $data['certifications'][] = [
+                    'title' => $_POST['cert_title'][$i] ?? '',
+                    'issued_by' => $_POST['issued_by'][$i] ?? '',
+                    'year' => $_POST['cert_year'][$i] ?? ''
+                ];
             }
-            $data['certifications'] = $certs;
         }
 
         // Languages
-        if (isset($_POST['language_name']) && is_array($_POST['language_name'])) {
-            $langs = [];
-            foreach ($_POST['language_name'] as $i => $name) {
-                if (!empty(trim($name))) {
-                    $langs[] = [
-                        'languageName' => trim($name),
-                        'proficiency' => $_POST['proficiency'][$i] ?? 'Intermediate'
-                    ];
-                }
+        $data['languages'] = [];
+        if (isset($_POST['language_name'])) {
+            foreach ($_POST['language_name'] as $i => $v) {
+                $data['languages'][] = [
+                    'languageName' => $_POST['language_name'][$i] ?? '',
+                    'proficiency' => $_POST['proficiency'][$i] ?? ''
+                ];
             }
-            $data['languages'] = $langs;
         }
 
         // Interests
-        $data['interests'] = trim($_POST['interests'] ?? '');
+        $data['interests'] = $_POST['interests'] ?? '';
 
-        $_SESSION['success_message'] = "All changes saved successfully!";
+        $_SESSION['success_message'] = "Data saved successfully (no validation applied).";
     }
 }
 
 $page_title = 'Resume Builder';
-$page_description = 'Create your professional resume with our easy-to-use resume builder.';
 $page_css = 'builder.css';
 $page_js = 'builder.js';
 ?>
+
+<?php if (isset($_SESSION['success_message'])): ?>
+<div class="alert alert-success">
+    <?= $_SESSION['success_message']; unset($_SESSION['success_message']); ?>
+</div>
+<?php endif; ?>
+
+<script>
+    window.resumeData = <?= json_encode($data); ?>;
+</script>
+<script src="<?= ASSETS_URL ?>js/builder.js"></script>
 
 <?php if (isset($_SESSION['success_message'])): ?>
 <div class="alert alert-success" style="margin: 20px 0; padding: 16px; border-radius: 8px; background: #d4edda; color: #155724; border: 1px solid #c3e6cb;">

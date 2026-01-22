@@ -1,59 +1,62 @@
 <?php
 /**
  * Corporate Blue Theme
- * Professional blue-themed layout optimized for corporate roles
+ * SAME UI – PDF SAFE COLORS & LAYOUT
  */
 
 if (!isset($data)) {
-    $data = isset($_SESSION['resume_data']) ? $_SESSION['resume_data'] : [];
+    $data = $_SESSION['resume_data'] ?? [];
 }
 ?>
 
 <div class="resume-document theme-corporate">
+
     <!-- Header -->
     <div class="resume-header">
-        <div class="header-content">
-            <div class="header-left">
-                <?php if (!empty($data['personal']['profilePicture'])): ?>
-                    <img src="<?php echo htmlspecialchars($data['personal']['profilePicture']); ?>" alt="Profile" class="profile-image">
-                <?php endif; ?>
-            </div>
-            <div class="header-right">
-                <h1><?php echo htmlspecialchars($data['personal']['fullName'] ?? 'Your Name'); ?></h1>
-                <p class="job-title"><?php echo htmlspecialchars($data['personal']['jobTitle'] ?? 'Job Title'); ?></p>
-                
-                <div class="contact-info">
-                    <?php if (!empty($data['personal']['email'])): ?>
-                        <span>✉ <?php echo htmlspecialchars($data['personal']['email']); ?></span>
+        <table class="header-content">
+            <tr>
+                <td class="header-left">
+                    <?php if (!empty($data['personal']['profilePicture'])): ?>
+                        <img src="<?= htmlspecialchars($data['personal']['profilePicture']); ?>" class="profile-image">
                     <?php endif; ?>
-                    <?php if (!empty($data['personal']['phone'])): ?>
-                        <span>☎ <?php echo htmlspecialchars($data['personal']['phone']); ?></span>
-                    <?php endif; ?>
-                    <?php if (!empty($data['personal']['address'])): ?>
-                        <span>⌂ <?php echo htmlspecialchars($data['personal']['address']); ?></span>
-                    <?php endif; ?>
-                </div>
+                </td>
+                <td class="header-right">
+                    <h1><?= htmlspecialchars($data['personal']['fullName'] ?? ''); ?></h1>
+                    <p class="job-title"><?= htmlspecialchars($data['personal']['jobTitle'] ?? ''); ?></p>
 
-                <div class="social-links">
-                    <?php if (!empty($data['personal']['website'])): ?>
-                        <a href="<?php echo htmlspecialchars($data['personal']['website']); ?>" target="_blank">Website</a>
-                    <?php endif; ?>
-                    <?php if (!empty($data['personal']['linkedin'])): ?>
-                        <a href="<?php echo htmlspecialchars($data['personal']['linkedin']); ?>" target="_blank">LinkedIn</a>
-                    <?php endif; ?>
-                    <?php if (!empty($data['personal']['github'])): ?>
-                        <a href="<?php echo htmlspecialchars($data['personal']['github']); ?>" target="_blank">GitHub</a>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
+                    <div class="contact-info">
+                        <?php if (!empty($data['personal']['email'])): ?>
+                            <span>✉ <?= htmlspecialchars($data['personal']['email']); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($data['personal']['phone'])): ?>
+                            <span>☎ <?= htmlspecialchars($data['personal']['phone']); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($data['personal']['address'])): ?>
+                            <span>⌂ <?= htmlspecialchars($data['personal']['address']); ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="social-links">
+                        <?php if (!empty($data['personal']['website'])): ?>
+                            <span><?= htmlspecialchars($data['personal']['website']); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($data['personal']['linkedin'])): ?>
+                            <span><?= htmlspecialchars($data['personal']['linkedin']); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($data['personal']['github'])): ?>
+                            <span><?= htmlspecialchars($data['personal']['github']); ?></span>
+                        <?php endif; ?>
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <!-- Profile Summary -->
     <?php if (!empty($data['personal']['profileSummary'])): ?>
         <div class="resume-section">
             <div class="summary-box">
-                <?php echo nl2br(htmlspecialchars($data['personal']['profileSummary'])); ?>
+                <?= nl2br(htmlspecialchars($data['personal']['profileSummary'])); ?>
             </div>
         </div>
     <?php endif; ?>
@@ -65,12 +68,14 @@ if (!isset($data)) {
             <?php foreach ($data['workExperience'] as $exp): ?>
                 <div class="experience-item">
                     <div class="item-header">
-                        <h3><?php echo htmlspecialchars($exp['jobRole'] ?? ''); ?></h3>
-                        <span class="date"><?php echo htmlspecialchars($exp['startDate'] ?? ''); ?> - <?php echo htmlspecialchars($exp['endDate'] ?? ''); ?></span>
+                        <h3><?= htmlspecialchars($exp['job_role'] ?? ''); ?></h3>
+                        <span class="date">
+                            <?= htmlspecialchars($exp['start_date'] ?? ''); ?> - <?= htmlspecialchars($exp['end_date'] ?? ''); ?>
+                        </span>
                     </div>
-                    <p class="company"><?php echo htmlspecialchars($exp['company'] ?? ''); ?></p>
+                    <p class="company"><?= htmlspecialchars($exp['company'] ?? ''); ?></p>
                     <?php if (!empty($exp['responsibilities'])): ?>
-                        <p><?php echo nl2br(htmlspecialchars($exp['responsibilities'])); ?></p>
+                        <p><?= nl2br(htmlspecialchars($exp['responsibilities'])); ?></p>
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
@@ -84,12 +89,14 @@ if (!isset($data)) {
             <?php foreach ($data['education'] as $edu): ?>
                 <div class="education-item">
                     <div class="item-header">
-                        <h3><?php echo htmlspecialchars($edu['degree'] ?? ''); ?></h3>
-                        <span class="date"><?php echo htmlspecialchars($edu['startYear'] ?? ''); ?> - <?php echo htmlspecialchars($edu['endYear'] ?? ''); ?></span>
+                        <h3><?= htmlspecialchars($edu['degree'] ?? ''); ?></h3>
+                        <span class="date">
+                            <?= htmlspecialchars($edu['start_year'] ?? ''); ?> - <?= htmlspecialchars($edu['end_year'] ?? ''); ?>
+                        </span>
                     </div>
-                    <p class="institute"><?php echo htmlspecialchars($edu['institute'] ?? ''); ?></p>
+                    <p class="institute"><?= htmlspecialchars($edu['institute'] ?? ''); ?></p>
                     <?php if (!empty($edu['cgpa'])): ?>
-                        <p class="cgpa">GPA: <?php echo htmlspecialchars($edu['cgpa']); ?></p>
+                        <p class="cgpa">GPA: <?= htmlspecialchars($edu['cgpa']); ?></p>
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
@@ -103,8 +110,8 @@ if (!isset($data)) {
             <div class="skills-container">
                 <?php foreach ($data['skills'] as $skill): ?>
                     <div class="skill-badge">
-                        <span class="skill-name"><?php echo htmlspecialchars($skill['skillName'] ?? ''); ?></span>
-                        <span class="skill-level"><?php echo htmlspecialchars($skill['level'] ?? ''); ?></span>
+                        <span class="skill-name"><?= htmlspecialchars($skill['skillName'] ?? ''); ?></span>
+                        <span class="skill-level"><?= htmlspecialchars($skill['level'] ?? ''); ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -117,12 +124,12 @@ if (!isset($data)) {
             <h2>Key Projects</h2>
             <?php foreach ($data['projects'] as $project): ?>
                 <div class="project-item">
-                    <h3><?php echo htmlspecialchars($project['projectName'] ?? ''); ?></h3>
+                    <h3><?= htmlspecialchars($project['name'] ?? ''); ?></h3>
                     <?php if (!empty($project['description'])): ?>
-                        <p><?php echo nl2br(htmlspecialchars($project['description'])); ?></p>
+                        <p><?= nl2br(htmlspecialchars($project['description'])); ?></p>
                     <?php endif; ?>
-                    <?php if (!empty($project['technologiesUsed'])): ?>
-                        <p><strong>Technologies:</strong> <?php echo htmlspecialchars($project['technologiesUsed']); ?></p>
+                    <?php if (!empty($project['technologies'])): ?>
+                        <p><strong>Technologies:</strong> <?= htmlspecialchars($project['technologies']); ?></p>
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
@@ -135,8 +142,8 @@ if (!isset($data)) {
             <h2>Certifications & Awards</h2>
             <?php foreach ($data['certifications'] as $cert): ?>
                 <div class="certification-item">
-                    <h3><?php echo htmlspecialchars($cert['certificateTitle'] ?? ''); ?></h3>
-                    <p><?php echo htmlspecialchars($cert['issuedBy'] ?? ''); ?> - <?php echo htmlspecialchars($cert['year'] ?? ''); ?></p>
+                    <h3><?= htmlspecialchars($cert['title'] ?? ''); ?></h3>
+                    <p><?= htmlspecialchars($cert['issued_by'] ?? ''); ?> - <?= htmlspecialchars($cert['year'] ?? ''); ?></p>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -149,8 +156,8 @@ if (!isset($data)) {
             <div class="languages-container">
                 <?php foreach ($data['languages'] as $lang): ?>
                     <div class="language-item">
-                        <span><?php echo htmlspecialchars($lang['languageName'] ?? ''); ?></span>
-                        <span class="proficiency"><?php echo htmlspecialchars($lang['proficiency'] ?? ''); ?></span>
+                        <span><?= htmlspecialchars($lang['languageName'] ?? ''); ?></span>
+                        <span class="proficiency"><?= htmlspecialchars($lang['proficiency'] ?? ''); ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -161,179 +168,124 @@ if (!isset($data)) {
     <?php if (!empty($data['interests'])): ?>
         <div class="resume-section">
             <h2>Interests</h2>
-            <p><?php echo nl2br(htmlspecialchars($data['interests'])); ?></p>
+            <p><?= nl2br(htmlspecialchars($data['interests'])); ?></p>
         </div>
     <?php endif; ?>
 </div>
 
 <style>
-    .resume-document {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        color: #1a3a52;
-        line-height: 1.6;
-        padding: 40px;
-        background: white;
-    }
+.resume-document {
+    font-family: DejaVu Sans, Arial, sans-serif;
+    color: #1a3a52;
+    line-height: 1.6;
+    padding: 40px;
+    background: #ffffff;
+}
 
-    .resume-header {
-        background: linear-gradient(135deg, #1a3a52 0%, #2c5aa0 100%);
-        color: white;
-        padding: 30px;
-        margin: -40px -40px 30px -40px;
-        border-bottom: 5px solid #f39c12;
-    }
+/* HEADER – solid color instead of gradient */
+.resume-header {
+    background-color: #1a3a52;
+    color: #ffffff;
+    padding: 30px;
+    margin: -40px -40px 30px -40px;
+    border-bottom: 5px solid #f39c12;
+}
 
-    .header-content {
-        display: flex;
-        gap: 25px;
-        align-items: flex-start;
-    }
+/* TABLE used but UI preserved */
+.header-content {
+    width: 100%;
+    border-collapse: collapse;
+}
 
-    .header-left {
-        flex-shrink: 0;
-    }
+.header-left {
+    width: 120px;
+}
 
-    .profile-image {
-        width: 100px;
-        height: 100px;
-        border-radius: 8px;
-        object-fit: cover;
-        border: 4px solid #f39c12;
-    }
+.profile-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 4px solid #f39c12;
+}
 
-    .header-right {
-        flex: 1;
-    }
+.resume-header h1 {
+    font-size: 28px;
+    margin: 0 0 5px 0;
+    font-weight: 700;
+}
 
-    .resume-header h1 {
-        font-size: 28px;
-        margin: 0 0 5px 0;
-        font-weight: 700;
-    }
+.job-title {
+    font-size: 16px;
+    color: #e8f4f8;
+    margin-bottom: 15px;
+}
 
-    .job-title {
-        font-size: 16px;
-        color: #e8f4f8;
-        margin: 0 0 15px 0;
-        font-weight: 500;
-    }
+.contact-info span,
+.social-links span {
+    display: inline-block;
+    font-size: 12px;
+    margin-right: 15px;
+}
 
-    .contact-info {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        font-size: 12px;
-        margin-bottom: 10px;
-    }
+.summary-box {
+    background: #f0f7ff;
+    padding: 20px;
+    border-left: 4px solid #f39c12;
+}
 
-    .social-links {
-        display: flex;
-        gap: 15px;
-    }
+.resume-section h2 {
+    font-size: 14px;
+    color: #1a3a52;
+    border-bottom: 3px solid #f39c12;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
 
-    .social-links a {
-        color: #f39c12;
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 500;
-    }
+.item-header {
+    display: table;
+    width: 100%;
+}
 
-    .summary-box {
-        background: #f0f7ff;
-        padding: 20px;
-        border-left: 4px solid #f39c12;
-        border-radius: 4px;
-        line-height: 1.8;
-    }
+.item-header h3 {
+    display: table-cell;
+    font-size: 13px;
+    font-weight: 700;
+}
 
-    .resume-section {
-        margin-bottom: 25px;
-    }
+.date {
+    display: table-cell;
+    text-align: right;
+    font-size: 12px;
+    color: #7f8c8d;
+}
 
-    .resume-section h2 {
-        font-size: 14px;
-        color: #1a3a52;
-        border-bottom: 3px solid #f39c12;
-        padding-bottom: 8px;
-        margin: 0 0 15px 0;
-        font-weight: 700;
-    }
+.company,
+.institute {
+    font-size: 12px;
+    color: #2c5aa0;
+    font-weight: 600;
+}
 
-    .experience-item,
-    .education-item,
-    .project-item,
-    .certification-item {
-        margin-bottom: 15px;
-    }
+.skills-container,
+.languages-container {
+    display: table;
+    width: 100%;
+}
 
-    .item-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        margin-bottom: 5px;
-        gap: 10px;
-    }
+.skill-badge,
+.language-item {
+    display: inline-block;
+    background: #e8f4f8;
+    padding: 8px 12px;
+    border-left: 3px solid #f39c12;
+    font-size: 12px;
+    margin: 5px 8px 0 0;
+}
 
-    .item-header h3 {
-        font-size: 13px;
-        margin: 0;
-        color: #1a3a52;
-        font-weight: 700;
-    }
-
-    .date {
-        font-size: 12px;
-        color: #7f8c8d;
-        white-space: nowrap;
-    }
-
-    .company,
-    .institute {
-        font-size: 12px;
-        color: #2c5aa0;
-        margin: 0 0 6px 0;
-        font-weight: 600;
-    }
-
-    .cgpa {
-        font-size: 12px;
-        color: #7f8c8d;
-        margin: 0;
-    }
-
-    .skills-container,
-    .languages-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .skill-badge,
-    .language-item {
-        background: #e8f4f8;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 12px;
-        border-left: 3px solid #f39c12;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .skill-level,
-    .proficiency {
-        font-size: 11px;
-        color: #2c5aa0;
-        font-weight: 500;
-    }
-
-    @media print {
-        .resume-document {
-            padding: 0;
-        }
-
-        .resume-header {
-            margin: 0;
-        }
-    }
+.skill-level,
+.proficiency {
+    font-size: 11px;
+    color: #2c5aa0;
+}
 </style>

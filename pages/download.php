@@ -55,12 +55,59 @@ try {
         <meta charset="UTF-8">
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; }
+            body { 
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; 
+                line-height: 1.6; 
+                background: white;
+                color: #333;
+            }
             @media print { 
                 body { margin: 0; padding: 0; } 
                 .resume-wrapper { page-break-after: avoid; }
+                .resume-document { 
+                    margin: 0;
+                    padding: 20px;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
             }
-            .resume-wrapper { max-width: 8.5in; margin: 0 auto; }
+            .resume-wrapper { 
+                max-width: 8.5in; 
+                margin: 0 auto; 
+                background: white;
+            }
+            /* Ensure all theme styles work in PDF */
+            .resume-document {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                color: #333;
+                line-height: 1.6;
+                padding: 40px;
+                background: white;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .profile-image {
+                width: 100px;
+                height: 100px;
+                border-radius: 8px;
+                object-fit: cover;
+                border: 3px solid #3498db;
+            }
+            .contact-item {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .text-icon {
+                font-weight: bold;
+                color: #3498db;
+                font-size: 12px;
+            }
+            /* Force colors to print */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         </style>
     </head>
     <body>' . $html . '</body>

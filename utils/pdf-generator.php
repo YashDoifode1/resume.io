@@ -65,6 +65,10 @@ class PDFGenerator {
                 'isFontSubsettingEnabled' => true,
                 'fontDir' => sys_get_temp_dir(),
                 'fontCache' => sys_get_temp_dir(),
+                'chroot' => ROOT_PATH,
+                'allowRemoteImages' => true,
+                'allowCssInclusion' => true,
+                'javascriptEnabled' => false,
             ]);
             $dompdf->setOptions($options);
             
@@ -102,6 +106,10 @@ class PDFGenerator {
                 'margin_bottom' => 10,
                 'margin_header' => 5,
                 'margin_footer' => 5,
+                'allow_url_fopen' => true,
+                'allow_external_url_images' => true,
+                'autoScriptToLang' => true,
+                'autoLangToFont' => true,
             ]);
             
             // Write HTML
