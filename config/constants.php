@@ -10,9 +10,9 @@
 // Application Settings
 // ============================================
 // Site Information
-define('SITE_NAME', 'resume.io');
+define('SITE_NAME', 'resume-builder.gt.tc');
 define('SITE_DESCRIPTION', 'Create professional resumes in minutes with our easy-to-use resume builder');
-define('SITE_AUTHOR', 'Shweta Darvhekar');
+define('SITE_AUTHOR', 'Yash Doifode');
 define('SITE_KEYWORDS', 'resume, cv, builder, job, career');
 
 // ============================================
@@ -127,17 +127,17 @@ define('SOCIAL_FACEBOOK', 'https://facebook.com');
 // ============================================
 // Contact Information (Editable)
 // ============================================
-define('CONTACT_EMAIL', 'shweta@resume.io');
+define('CONTACT_EMAIL', 'yashdoifode1439@gmail.com');
 define('CONTACT_PHONE', '+91 (XXX) XXX-XXXX');
-define('CONTACT_ADDRESS', 'SRWC Raisoni College, Nagpur, Maharashtra');
+define('CONTACT_ADDRESS', ' Nagpur, Maharashtra');
 define('CONTACT_BUSINESS_HOURS', 'Monday - Friday, 9:00 AM - 6:00 PM IST');
 
 // ============================================
 // Owner Information
 // ============================================
-define('OWNER_NAME', 'Shweta Darvhekar');
+define('OWNER_NAME', 'Yash Doifode');
 define('OWNER_TITLE', 'Founder & Developer');
-define('OWNER_COLLEGE', 'SRWC Raisoni College');
+define('OWNER_COLLEGE', '');
 define('OWNER_LOCATION', 'Nagpur, Maharashtra');
 define('OWNER_BIO', 'Passionate about creating tools that help professionals build their careers');
 

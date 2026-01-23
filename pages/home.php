@@ -73,7 +73,7 @@ $canonical_url = BASE_URL;
                         <span class="tag">Modern</span>
                         <span class="tag">Popular</span>
                     </div>
-                    <a href="<?php echo BASE_URL; ?>?page=builder" class="btn btn-primary btn-sm" style="margin-top: 15px;">Use Template</a>
+                   
                 </div>
             </div>
             
@@ -90,7 +90,7 @@ $canonical_url = BASE_URL;
                         <span class="tag">Traditional</span>
                         <span class="tag">Finance</span>
                     </div>
-                    <a href="<?php echo BASE_URL; ?>?page=builder" class="btn btn-primary btn-sm" style="margin-top: 15px;">Use Template</a>
+                   
                 </div>
             </div>
             
@@ -107,7 +107,7 @@ $canonical_url = BASE_URL;
                         <span class="tag">Colorful</span>
                         <span class="tag">Design</span>
                     </div>
-                    <a href="<?php echo BASE_URL; ?>?page=builder" class="btn btn-primary btn-sm" style="margin-top: 15px;">Use Template</a>
+                   
                 </div>
             </div>
             
@@ -124,7 +124,7 @@ $canonical_url = BASE_URL;
                         <span class="tag">Clean</span>
                         <span class="tag">Simple</span>
                     </div>
-                    <a href="<?php echo BASE_URL; ?>?page=builder" class="btn btn-primary btn-sm" style="margin-top: 15px;">Use Template</a>
+                   
                 </div>
             </div>
             
@@ -141,7 +141,7 @@ $canonical_url = BASE_URL;
                         <span class="tag">Modern</span>
                         <span class="tag">Tech</span>
                     </div>
-                    <a href="<?php echo BASE_URL; ?>?page=builder" class="btn btn-primary btn-sm" style="margin-top: 15px;">Use Template</a>
+                   
                 </div>
             </div>
             

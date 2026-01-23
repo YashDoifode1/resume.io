@@ -16,7 +16,7 @@ $page_description = 'Preview and customize your resume before downloading';
 
 // Theme configuration
 $themeFiles = [
-    'classic'     => 'theme1-classic.php',
+    // 'classic'     => 'theme1-classic.php',
     'modern'      => 'theme2-modern.php',
     'corporate'   => 'theme3-corporate.php',
     'creative'    => 'theme4-creative.php',
@@ -41,7 +41,7 @@ if (!in_array($theme, $validThemes)) {
 }
 
 $themeMeta = [
-    'classic'     => ['📄', 'Classic Professional', 'Traditional layout suitable for all industries'],
+    // 'classic'     => ['📄', 'Classic Professional', 'Traditional layout suitable for all industries'],
     'modern'      => ['✨', 'Modern Minimal', 'Clean and minimal design for modern professionals'],
     'corporate'   => ['💼', 'Corporate Blue', 'Formal corporate style for business roles'],
     'creative'    => ['🎨', 'Creative Portfolio', 'Visual-focused layout for designers and creatives'],
