@@ -1,13 +1,108 @@
 <?php
 /**
- * Resume Builder - Updated with Step-by-Step Saving
+ * Resume Builder - Updated with Theme Integration
  */
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+require_once __DIR__ . '/../config/database.php';
+// ================= THEME RESOLUTION LOGIC =================
+// Get the requested theme from URL parameter
+$requestedThemeSlug = $_GET['theme'] ?? '';
 
+// Default fallback theme slug (should exist in database)
+$defaultThemeSlug = 'modern';
+$activeTheme = null;
+$themeErrorMessage = '';
+
+try {
+    // Fetch the matching active theme from database
+    $stmt = $pdo->prepare("
+        SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+        FROM themes 
+        WHERE slug = :slug AND is_active = 1
+        LIMIT 1
+    ");
+    $stmt->execute([':slug' => $requestedThemeSlug]);
+    $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // If requested theme not found or not active, fallback to default
+    if (!$activeTheme && !empty($requestedThemeSlug)) {
+        $stmt = $pdo->prepare("
+            SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+            FROM themes 
+            WHERE slug = :slug AND is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute([':slug' => $defaultThemeSlug]);
+        $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($activeTheme) {
+            $themeErrorMessage = "Requested theme not available. Using default theme.";
+        }
+    }
+    
+    // If still no theme, fetch first active theme as ultimate fallback
+    if (!$activeTheme) {
+        $stmt = $pdo->query("
+            SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+            FROM themes 
+            WHERE is_active = 1 
+            ORDER BY id ASC 
+            LIMIT 1
+        ");
+        $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$activeTheme) {
+            throw new Exception("No active themes available in database.");
+        }
+    }
+    
+    // ================= TEMPLATE FILE VALIDATION =================
+    // Validate and sanitize the file_name
+    $templateFile = $activeTheme['file_name'] ?? '';
+    
+    // Security: Only allow alphanumeric, hyphens, underscores, and dots
+    if (!preg_match('/^[a-zA-Z0-9_\-\.]+\.php$/', $templateFile)) {
+        throw new Exception("Invalid template file name format.");
+    }
+    
+    // Prevent directory traversal
+    $templatePath = __DIR__ . '/../themes/' . basename($templateFile);
+    
+    // Verify the template file exists
+    if (!file_exists($templatePath)) {
+        // Try to find any existing template as fallback
+        $fallbackTemplate = 'theme2-modern.php';
+        $templatePath = __DIR__ . '/../themes/' . $fallbackTemplate;
+        
+        if (!file_exists($templatePath)) {
+            throw new Exception("Template file not found.");
+        }
+        
+        $activeTheme['file_name'] = $fallbackTemplate;
+        $themeErrorMessage = "Template file not found. Using fallback template.";
+    }
+    
+} catch (Exception $e) {
+    // Log error in production, show user-friendly message
+    error_log("Theme Error: " . $e->getMessage());
+    $themeErrorMessage = "Theme configuration issue. Using basic layout.";
+    
+    // Ultimate fallback to ensure builder always works
+    $activeTheme = [
+        'slug' => 'fallback',
+        'name' => 'Basic Template',
+        'description' => 'Fallback template',
+        'icon' => '📄',
+        'file_name' => 'theme2-modern.php',
+        'is_premium' => 0
+    ];
+}
+
+// ================= RESUME DATA INITIALIZATION =================
 if (!isset($_SESSION['resume_data'])) {
     $_SESSION['resume_data'] = [
         'personal' => [
@@ -140,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Use JavaScript redirect instead of header() to avoid "headers already sent" error
-        echo '<script>window.location.href = "' . BASE_URL . '?page=builder&step=' . $step . '";</script>';
+        echo '<script>window.location.href = "' . BASE_URL . '?page=builder&theme=' . urlencode($activeTheme['slug']) . '&step=' . $step . '";</script>';
         exit;
     }
 }
@@ -149,9 +244,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $current_step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
 if ($current_step < 1 || $current_step > 5) $current_step = 1;
 
-$page_title = 'Resume Builder';
-$page_description = 'Create your professional resume with our easy-to-use resume builder.';
+$page_title = 'Resume Builder - ' . htmlspecialchars($activeTheme['name']);
+$page_description = 'Create your professional resume with ' . htmlspecialchars($activeTheme['name']) . ' template.';
 ?>
+
+<!-- Theme Information Display -->
+<div class="theme-info-bar">
+    <div class="container">
+        <div class="theme-info-content">
+            <span class="theme-icon"><?php echo htmlspecialchars($activeTheme['icon'] ?? '📄'); ?></span>
+            <div class="theme-details">
+                <h4><?php echo htmlspecialchars($activeTheme['name']); ?></h4>
+                <p><?php echo htmlspecialchars($activeTheme['description']); ?></p>
+            </div>
+            <?php if ($activeTheme['is_premium']): ?>
+                <span class="badge premium-badge">
+                    <i class="fas fa-crown"></i> Premium
+                </span>
+            <?php endif; ?>
+            <div class="theme-actions">
+                <a href="<?php echo BASE_URL; ?>?page=builder" class="btn-theme-switch">
+                    <i class="fas fa-palette"></i> Switch Theme
+                </a>
+            </div>
+        </div>
+        <?php if ($themeErrorMessage): ?>
+            <div class="theme-warning">
+                <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($themeErrorMessage); ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
 
 <?php if (isset($_SESSION['success_message'])): ?>
 <div class="alert-success">
@@ -201,6 +324,7 @@ $page_description = 'Create your professional resume with our easy-to-use resume
                 <form id="resume-builder-form" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="save_step">
                     <input type="hidden" name="step" id="current_step" value="<?php echo $current_step; ?>">
+                    <input type="hidden" name="theme_slug" value="<?php echo htmlspecialchars($activeTheme['slug']); ?>">
                     
                     <!-- Personal Information (Step 1) -->
                     <div class="form-step <?php echo $current_step == 1 ? 'active' : ''; ?>" id="step1">
@@ -584,11 +708,12 @@ $page_description = 'Create your professional resume with our easy-to-use resume
                     <form method="POST" id="final-save-form">
                         <input type="hidden" name="action" value="save_all">
                         <input type="hidden" name="step" value="5">
+                        <input type="hidden" name="theme_slug" value="<?php echo htmlspecialchars($activeTheme['slug']); ?>">
                         <div class="form-actions">
                             <button type="submit" class="btn-success btn-lg">
                                 <i class="fas fa-save"></i> Save Complete Resume
                             </button>
-                            <a href="<?php echo BASE_URL; ?>?page=download" class="btn-primary btn-lg">
+                            <a href="<?php echo BASE_URL; ?>?page=download&theme=<?php echo urlencode($activeTheme['slug']); ?>" class="btn-primary btn-lg">
                                 <i class="fas fa-download"></i> Download PDF
                             </a>
                         </div>
@@ -603,6 +728,7 @@ $page_description = 'Create your professional resume with our easy-to-use resume
                     <h3>Live Preview 
                         <span class="auto-save-status" id="autoSaveStatus"></span>
                         <span class="step-indicator">Step <?php echo $current_step; ?>/5</span>
+                        <span class="theme-badge"><?php echo htmlspecialchars($activeTheme['name']); ?></span>
                     </h3>
                     <div class="preview-controls">
                         <button type="button" class="btn-preview-control" onclick="togglePreviewScale()" title="Zoom">
@@ -616,11 +742,27 @@ $page_description = 'Create your professional resume with our easy-to-use resume
                 
                 <div class="resume-preview-wrapper">
                     <div class="resume-preview" id="livePreview">
-                        <!-- Include the live preview theme -->
+                        <!-- ================= TEMPLATE RENDERING ================= -->
                         <?php 
-                        // Temporarily store the data for the theme
-                        $theme_data = $data;
-                        include 'themes/theme2-modern.php';
+                        try {
+                            // Pass resume data to template via variables, not globals
+                            $resumeData = $data;
+                            $themeSlug = $activeTheme['slug'];
+                            $isPremium = $activeTheme['is_premium'];
+                            
+                            // Include the selected theme template
+                            include __DIR__ . '/../themes/' . basename($activeTheme['file_name']);
+                            
+                        } catch (Exception $e) {
+                            // Fallback template rendering if theme fails
+                            echo '<div class="theme-error">';
+                            echo '<h4>Template Rendering Error</h4>';
+                            echo '<p>The selected theme could not be loaded. Using basic layout.</p>';
+                            echo '</div>';
+                            
+                            // Include fallback template
+                            include __DIR__ . '/../themes/theme2-modern.php';
+                        }
                         ?>
                     </div>
                 </div>
@@ -628,12 +770,13 @@ $page_description = 'Create your professional resume with our easy-to-use resume
                 <div class="preview-actions">
                     <p class="auto-save-info">
                         <i class="fas fa-sync-alt"></i> <span id="autoSaveText">Auto-saved just now</span>
+                        <span class="theme-info">Theme: <?php echo htmlspecialchars($activeTheme['name']); ?></span>
                     </p>
                     <div class="preview-buttons">
                         <button type="button" class="btn btn-secondary" onclick="goToStep(<?php echo $current_step; ?>)">
                             <i class="fas fa-edit"></i> Edit This Section
                         </button>
-                        <a href="<?php echo BASE_URL; ?>?page=preview" class="btn btn-primary">
+                        <a href="<?php echo BASE_URL; ?>?page=preview&theme=<?php echo urlencode($activeTheme['slug']); ?>" class="btn btn-primary">
                             <i class="fas fa-eye"></i> Full Preview
                         </a>
                     </div>
@@ -647,6 +790,7 @@ $page_description = 'Create your professional resume with our easy-to-use resume
 <script>
 window.resumeData = <?php echo json_encode($data); ?>;
 window.currentStep = <?php echo $current_step; ?>;
+window.activeTheme = <?php echo json_encode($activeTheme); ?>;
 window.previewScale = 0.85;
 </script>
 
@@ -657,6 +801,11 @@ function updatePreviewField(field, value) {
     // Show auto-save status
     showAutoSaveStatus('Updating...');
     
+    // Update the data object
+    if (window.resumeData.personal) {
+        window.resumeData.personal[field] = value;
+    }
+    
     // Call the theme's update function if available
     if (typeof window.updatePreview === 'function') {
         window.updatePreview(field, value);
@@ -665,12 +814,20 @@ function updatePreviewField(field, value) {
         const element = document.getElementById(`preview-${field}`);
         if (element) {
             element.textContent = value || getDefaultValue(field);
+            element.classList.add('updated');
+            setTimeout(() => element.classList.remove('updated'), 1500);
         }
     }
 }
 
 function updateWorkExperiencePreview(index, field, value) {
     showAutoSaveStatus('Updating experience...');
+    
+    // Update data object
+    if (!window.resumeData.workExperience[index]) {
+        window.resumeData.workExperience[index] = {};
+    }
+    window.resumeData.workExperience[index][field] = value;
     
     if (typeof window.updateWorkExperience === 'function') {
         window.updateWorkExperience(index, field, value);
@@ -680,6 +837,12 @@ function updateWorkExperiencePreview(index, field, value) {
 function updateEducationPreview(index, field, value) {
     showAutoSaveStatus('Updating education...');
     
+    // Update data object
+    if (!window.resumeData.education[index]) {
+        window.resumeData.education[index] = {};
+    }
+    window.resumeData.education[index][field] = value;
+    
     if (typeof window.updateEducation === 'function') {
         window.updateEducation(index, field, value);
     }
@@ -687,6 +850,12 @@ function updateEducationPreview(index, field, value) {
 
 function updateSkillPreview(index, field, value) {
     showAutoSaveStatus('Updating skills...');
+    
+    // Update data object
+    if (!window.resumeData.skills[index]) {
+        window.resumeData.skills[index] = {};
+    }
+    window.resumeData.skills[index][field] = value;
     
     if (typeof window.updateSkill === 'function') {
         window.updateSkill(index, field, value);
@@ -707,7 +876,9 @@ function handleProfilePictureUpload(input) {
             container.style.display = 'block';
             document.getElementById('remove_picture').value = '0';
             
-            // Update preview
+            // Update data and preview
+            window.resumeData.personal.profilePicture = e.target.result;
+            
             if (typeof window.updateProfilePicture === 'function') {
                 window.updateProfilePicture(e.target.result);
             }
@@ -729,7 +900,9 @@ function removeProfilePicture() {
     container.style.display = 'block';
     removeInput.value = '1';
     
-    // Update preview
+    // Update data and preview
+    window.resumeData.personal.profilePicture = preview.src;
+    
     if (typeof window.updateProfilePicture === 'function') {
         window.updateProfilePicture('');
     }
@@ -766,9 +939,10 @@ function showAutoSaveStatus(text) {
     }
 }
 
-// Step navigation
+// Step navigation with theme preservation
 function goToStep(step) {
-    window.location.href = '<?php echo BASE_URL; ?>?page=builder&step=' + step;
+    const theme = window.activeTheme?.slug || '<?php echo htmlspecialchars($activeTheme["slug"]); ?>';
+    window.location.href = '<?php echo BASE_URL; ?>?page=builder&theme=' + encodeURIComponent(theme) + '&step=' + step;
 }
 
 function nextStep() {
@@ -795,6 +969,7 @@ function togglePreviewScale() {
     if (preview) {
         window.previewScale = window.previewScale === 0.85 ? 1 : 0.85;
         preview.style.transform = `scale(${window.previewScale})`;
+        preview.style.transformOrigin = 'top center';
         preview.style.width = `${100 / window.previewScale}%`;
         
         // Show notification
@@ -806,9 +981,18 @@ function togglePreviewScale() {
 function refreshPreview() {
     const previewContainer = document.getElementById('livePreview');
     if (previewContainer) {
-        // Reload the preview
-        previewContainer.innerHTML = previewContainer.innerHTML;
-        showAutoSaveStatus('Preview refreshed');
+        // Add loading animation
+        previewContainer.style.opacity = '0.5';
+        
+        // Reload the preview after a short delay
+        setTimeout(() => {
+            previewContainer.style.opacity = '1';
+            // In a real implementation, you might want to re-render the template
+            // For now, we'll just reload the page to get fresh template
+            window.location.reload();
+        }, 300);
+        
+        showAutoSaveStatus('Refreshing preview...');
     }
 }
 
@@ -985,6 +1169,138 @@ setInterval(() => {
 </script>
 
 <style>
+/* ================= THEME INFO BAR ================= */
+.theme-info-bar {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 0;
+}
+
+.theme-info-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.theme-icon {
+    font-size: 24px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.theme-details {
+    flex: 1;
+    min-width: 200px;
+}
+
+.theme-details h4 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: var(--dark);
+}
+
+.theme-details p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--medium-gray);
+    line-height: 1.4;
+}
+
+.premium-badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.premium-badge i {
+    font-size: 10px;
+}
+
+.btn-theme-switch {
+    background: var(--primary);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.btn-theme-switch:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.theme-warning {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    color: #856404;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.theme-warning i {
+    color: #f59e0b;
+}
+
+/* Theme badge in preview */
+.theme-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(67, 97, 238, 0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.theme-info {
+    font-size: 12px;
+    color: var(--medium-gray);
+    margin-left: 12px;
+}
+
+/* Theme error state */
+.theme-error {
+    padding: 40px;
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed var(--border-color);
+}
+
+.theme-error h4 {
+    color: var(--danger);
+    margin-bottom: 12px;
+}
+
+.theme-error p {
+    color: var(--medium-gray);
+}
+
+/* ================= EXISTING STYLES ================= */
 :root {
     --primary: #4361ee;
     --primary-dark: #3a56d4;
@@ -1073,6 +1389,7 @@ setInterval(() => {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .preview-controls {
@@ -1445,6 +1762,8 @@ setInterval(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .auto-save-info {
@@ -1453,6 +1772,7 @@ setInterval(() => {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .auto-save-info i {
@@ -1540,6 +1860,15 @@ setInterval(() => {
     .preview-controls {
         align-self: flex-end;
     }
+    
+    .theme-info-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .theme-details {
+        min-width: 100%;
+    }
 }
 
 /* Animation for real-time updates */
@@ -1550,5 +1879,21 @@ setInterval(() => {
 
 .updated {
     animation: highlight 1.5s ease;
+}
+
+/* Responsive adjustments for theme bar */
+@media (max-width: 576px) {
+    .theme-info-bar {
+        padding: 16px 0;
+    }
+    
+    .theme-info-content {
+        gap: 12px;
+    }
+    
+    .btn-theme-switch {
+        width: 100%;
+        justify-content: center;
+    }
 }
 </style>

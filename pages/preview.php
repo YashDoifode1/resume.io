@@ -1,6 +1,6 @@
 <?php
 /**
- * Resume Preview Page - Professional UI with Simple Theme Loading
+ * Resume Preview Page - Professional UI with Database-Driven Theme Loading
  */
 
 if (!isset($_SESSION['resume_data'])) {
@@ -9,60 +9,94 @@ if (!isset($_SESSION['resume_data'])) {
 }
 
 $data = $_SESSION['resume_data'];
-$theme = $_GET['theme'] ?? 'modern';
+$selectedThemeSlug = $_GET['theme'] ?? 'modern';
 
 $page_title = 'Preview Resume | ResumeCraft';
 $page_description = 'Preview and customize your resume before downloading';
 
-// Theme configuration
-$themeFiles = [
-    // 'classic'     => 'theme1-classic.php',
-    'modern'      => 'theme2-modern.php',
-    'corporate'   => 'theme3-corporate.php',
-    'creative'    => 'theme4-creative.php',
-    'dark'        => 'theme5-dark.php',
-    'elegant'     => 'theme6-elegant.php',
-    'tech'        => 'theme7-tech.php',
-    'minimal'     => 'theme8-minimal.php',
-    'vibrant'     => 'theme9-vibrant.php',
-    'executive'   => 'theme10-executive.php',
+// Initialize database connection
+require_once __DIR__ . '/../config/database.php';
 
-    /* NEW THEMES */
-    'gradient'    => 'theme11-gradient.php',
-    'sidebar'     => 'theme12-sidebar.php',
-    'minimalist'  => 'theme13-minimalist.php',
-    'colorful'    => 'theme14-colorful.php',
-    'timeline'    => 'theme15-timeline.php'
-];
+// ================= DATABASE-DRIVEN THEME LOADING =================
+$activeTheme = null;
+$allActiveThemes = [];
+$themeErrorMessage = '';
 
-$validThemes = array_keys($themeFiles);
-if (!in_array($theme, $validThemes)) {
-    $theme = 'classic';
+try {
+    // Fetch all active themes from database
+    $stmt = $pdo->query("
+        SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+        FROM themes 
+        WHERE is_active = 1 
+        ORDER BY id ASC
+    ");
+    $allActiveThemes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (empty($allActiveThemes)) {
+        throw new Exception("No active themes available in database.");
+    }
+    
+    // Find the selected theme
+    $selectedTheme = null;
+    foreach ($allActiveThemes as $theme) {
+        if ($theme['slug'] === $selectedThemeSlug) {
+            $selectedTheme = $theme;
+            break;
+        }
+    }
+    
+    // If selected theme not found, use first available theme
+    if (!$selectedTheme) {
+        $selectedTheme = $allActiveThemes[0];
+        $themeErrorMessage = "Requested theme not available. Using default theme.";
+    }
+    
+    $activeTheme = $selectedTheme;
+    
+    // Validate and sanitize the file_name
+    $templateFile = $activeTheme['file_name'] ?? '';
+    
+    // Security: Only allow alphanumeric, hyphens, underscores, and dots
+    if (!preg_match('/^[a-zA-Z0-9_\-\.]+\.php$/', $templateFile)) {
+        throw new Exception("Invalid template file name format.");
+    }
+    
+    // Build theme file path
+    $themePath = THEMES_PATH . basename($templateFile);
+    
+    // Verify the template file exists
+    if (!file_exists($themePath)) {
+        throw new Exception("Template file not found: " . basename($templateFile));
+    }
+    
+} catch (Exception $e) {
+    // Log error in production
+    error_log("Theme Error in preview.php: " . $e->getMessage());
+    $themeErrorMessage = "Theme configuration issue. Using basic layout.";
+    
+    // Ultimate fallback
+    $activeTheme = [
+        'slug' => 'fallback',
+        'name' => 'Basic Template',
+        'description' => 'Fallback template',
+        'icon' => '📄',
+        'file_name' => 'theme2-modern.php',
+        'is_premium' => 0
+    ];
+    
+    // Ensure file exists
+    $themePath = THEMES_PATH . 'theme2-modern.php';
+    if (!file_exists($themePath)) {
+        // Create minimal fallback
+        $fallbackContent = '<div style="padding: 40px; text-align: center; background: white;">';
+        $fallbackContent .= '<h2>Resume Preview</h2>';
+        $fallbackContent .= '<p>Basic resume layout</p>';
+        $fallbackContent .= '</div>';
+        $themeContent = $fallbackContent;
+    }
 }
 
-$themeMeta = [
-    // 'classic'     => ['📄', 'Classic Professional', 'Traditional layout suitable for all industries'],
-    'modern'      => ['✨', 'Modern Minimal', 'Clean and minimal design for modern professionals'],
-    'corporate'   => ['💼', 'Corporate Blue', 'Formal corporate style for business roles'],
-    'creative'    => ['🎨', 'Creative Portfolio', 'Visual-focused layout for designers and creatives'],
-    'dark'        => ['🌙', 'Dark Mode', 'Sleek modern dark-themed resume'],
-
-    'elegant'     => ['✨', 'Elegant Gold', 'Premium elegant style with gold accents'],
-    'tech'        => ['💻', 'Tech Startup', 'Modern tech-focused layout for startups and developers'],
-    'minimal'     => ['⚪', 'Ultra Minimal', 'Ultra-clean layout with minimal visual elements'],
-    'vibrant'     => ['🌈', 'Vibrant Colors', 'Bold and colorful design to stand out'],
-    'executive'   => ['👔', 'Executive Premium', 'High-end professional layout for executives'],
-
-    /* NEW THEMES */
-    'gradient'    => ['🌅', 'Gradient Style', 'Smooth gradient backgrounds for a modern look'],
-    'sidebar'     => ['📌', 'Sidebar Layout', 'Sidebar-based structure for clear section separation'],
-    'minimalist'  => ['⬜', 'Minimalist Clean', 'Pure minimalist layout with maximum readability'],
-    'colorful'    => ['🎯', 'Colorful Creative', 'Playful and creative layout with rich colors'],
-    'timeline'    => ['🕒', 'Timeline Resume', 'Chronological timeline-based resume layout']
-];
-
-
-// Get profile picture URL - using your proven function
+// Get profile picture URL
 function getProfilePictureUrl($profilePicture) {
     if (empty($profilePicture)) {
         return BASE_URL . 'assets/images/default-profile.png';
@@ -126,13 +160,13 @@ $completionPercentage = calculateCompletion($data);
                 <div class="rc-nav-brand">
                     <i class="fas fa-file-alt rc-nav-icon"></i>
                     <span class="rc-nav-title">ResumeCraft Preview</span>
-                    <span class="rc-nav-subtitle">/ Theme: <?= $themeMeta[$theme][1]; ?></span>
+                    <span class="rc-nav-subtitle">/ Theme: <?= htmlspecialchars($activeTheme['name']); ?></span>
                 </div>
                 <div class="rc-nav-actions">
-                    <a href="<?= BASE_URL; ?>?page=builder" class="rc-btn rc-btn-outline rc-btn-sm">
+                    <a href="<?= BASE_URL; ?>?page=builder&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-btn rc-btn-outline rc-btn-sm">
                         <i class="fas fa-edit"></i> Edit Resume
                     </a>
-                    <a href="<?= BASE_URL; ?>?page=download&theme=<?= $theme; ?>" class="rc-btn rc-btn-primary rc-btn-sm">
+                    <a href="<?= BASE_URL; ?>?page=download&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-btn rc-btn-primary rc-btn-sm">
                         <i class="fas fa-download"></i> Download PDF
                     </a>
                     <button onclick="window.print()" class="rc-btn rc-btn-secondary rc-btn-sm">
@@ -176,16 +210,26 @@ $completionPercentage = calculateCompletion($data);
                             <i class="fas fa-palette rc-card-icon"></i>
                             <h3 class="rc-card-title">Choose Template</h3>
                         </div>
+                        <?php if (!empty($themeErrorMessage)): ?>
+                        <div class="rc-theme-warning">
+                            <i class="fas fa-exclamation-triangle"></i> <?= htmlspecialchars($themeErrorMessage); ?>
+                        </div>
+                        <?php endif; ?>
                         <div class="rc-theme-grid">
-                            <?php foreach ($themeMeta as $key => $meta): ?>
-                                <a href="<?= BASE_URL; ?>?page=preview&theme=<?= $key; ?>" 
-                                   class="rc-theme-card <?= $theme === $key ? 'rc-theme-active' : ''; ?>">
-                                    <div class="rc-theme-icon"><?= $meta[0]; ?></div>
+                            <?php foreach ($allActiveThemes as $theme): ?>
+                                <a href="<?= BASE_URL; ?>?page=preview&theme=<?= urlencode($theme['slug']); ?>" 
+                                   class="rc-theme-card <?= $activeTheme['slug'] === $theme['slug'] ? 'rc-theme-active' : ''; ?>">
+                                    <div class="rc-theme-icon"><?= htmlspecialchars($theme['icon']); ?></div>
                                     <div class="rc-theme-info">
-                                        <h4 class="rc-theme-name"><?= $meta[1]; ?></h4>
-                                        <p class="rc-theme-desc"><?= $meta[2]; ?></p>
+                                        <h4 class="rc-theme-name"><?= htmlspecialchars($theme['name']); ?></h4>
+                                        <p class="rc-theme-desc"><?= htmlspecialchars($theme['description']); ?></p>
                                     </div>
-                                    <?php if ($theme === $key): ?>
+                                    <?php if ($theme['is_premium']): ?>
+                                        <div class="rc-premium-badge">
+                                            <i class="fas fa-crown"></i> Premium
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($activeTheme['slug'] === $theme['slug']): ?>
                                         <div class="rc-theme-badge">
                                             <i class="fas fa-check"></i>
                                         </div>
@@ -256,10 +300,10 @@ $completionPercentage = calculateCompletion($data);
                     <div class="rc-preview-controls">
                         <div class="rc-controls-left">
                             <div class="rc-theme-indicator">
-                                <span class="rc-theme-preview"><?= $themeMeta[$theme][0]; ?></span>
+                                <span class="rc-theme-preview"><?= htmlspecialchars($activeTheme['icon']); ?></span>
                                 <div>
-                                    <h4 class="rc-current-theme"><?= $themeMeta[$theme][1]; ?></h4>
-                                    <p class="rc-theme-preview-desc"><?= $themeMeta[$theme][2]; ?></p>
+                                    <h4 class="rc-current-theme"><?= htmlspecialchars($activeTheme['name']); ?></h4>
+                                    <p class="rc-theme-preview-desc"><?= htmlspecialchars($activeTheme['description']); ?></p>
                                 </div>
                             </div>
                         </div>
@@ -288,13 +332,13 @@ $completionPercentage = calculateCompletion($data);
                             <?php
                                 // Pass data to theme
                                 $data['personal']['processedProfilePicture'] = $profilePictureUrl;
-                                $themeFile = THEMES_PATH . $themeFiles[$theme];
+                                $themeFile = THEMES_PATH . $activeTheme['file_name'];
                                 
-                                // Simple direct inclusion - like your reference
-                                if (file_exists($themeFile)) {
+                                // Simple direct inclusion
+                                if (isset($themePath) && file_exists($themePath)) {
                                     // Use output buffering to capture
                                     ob_start();
-                                    include $themeFile;
+                                    include $themePath;
                                     $themeContent = ob_get_clean();
                                     
                                     // Output theme content directly
@@ -302,15 +346,23 @@ $completionPercentage = calculateCompletion($data);
                                     echo $themeContent;
                                     echo '</div>';
                                 } else {
-                                    // Simple fallback
+                                    // Graceful fallback UI
                                     echo '<div class="rc-theme-error">';
                                     echo '<div class="rc-error-content">';
                                     echo '<i class="fas fa-exclamation-triangle rc-error-icon"></i>';
                                     echo '<h3>Theme Not Found</h3>';
                                     echo '<p>The selected theme template could not be loaded.</p>';
-                                    echo '<a href="' . BASE_URL . '?page=preview&theme=classic" class="rc-btn rc-btn-primary">';
-                                    echo 'Use Classic Theme';
-                                    echo '</a>';
+                                    echo '<p><small>Template file: ' . htmlspecialchars($activeTheme['file_name']) . '</small></p>';
+                                    if (!empty($allActiveThemes)) {
+                                        echo '<div class="rc-fallback-options">';
+                                        echo '<p>Try one of these available themes:</p>';
+                                        foreach ($allActiveThemes as $fallbackTheme) {
+                                            echo '<a href="' . BASE_URL . '?page=preview&theme=' . urlencode($fallbackTheme['slug']) . '" class="rc-btn rc-btn-sm rc-btn-outline">';
+                                            echo htmlspecialchars($fallbackTheme['name']);
+                                            echo '</a> ';
+                                        }
+                                        echo '</div>';
+                                    }
                                     echo '</div>';
                                     echo '</div>';
                                 }
@@ -331,7 +383,7 @@ $completionPercentage = calculateCompletion($data);
                     <!-- Action Buttons -->
                     <div class="rc-preview-actions">
                         <div class="rc-action-grid">
-                            <a href="<?= BASE_URL; ?>?page=builder" class="rc-action-card rc-action-edit">
+                            <a href="<?= BASE_URL; ?>?page=builder&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-action-card rc-action-edit">
                                 <i class="fas fa-edit rc-action-icon"></i>
                                 <div class="rc-action-content">
                                     <h4 class="rc-action-title">Edit Resume</h4>
@@ -339,7 +391,7 @@ $completionPercentage = calculateCompletion($data);
                                 </div>
                             </a>
                             
-                            <a href="<?= BASE_URL; ?>?page=download&theme=<?= $theme; ?>" class="rc-action-card rc-action-download">
+                            <a href="<?= BASE_URL; ?>?page=download&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-action-card rc-action-download">
                                 <i class="fas fa-file-pdf rc-action-icon"></i>
                                 <div class="rc-action-content">
                                     <h4 class="rc-action-title">Download PDF</h4>
@@ -355,7 +407,7 @@ $completionPercentage = calculateCompletion($data);
                                 </div>
                             </button>
                             
-                            <a href="<?= BASE_URL; ?>?page=templates" class="rc-action-card rc-action-templates">
+                            <a href="<?= BASE_URL; ?>?page=builder" class="rc-action-card rc-action-templates">
                                 <i class="fas fa-layer-group rc-action-icon"></i>
                                 <div class="rc-action-content">
                                     <h4 class="rc-action-title">More Templates</h4>
@@ -680,9 +732,28 @@ $completionPercentage = calculateCompletion($data);
     line-height: 1.4;
 }
 
+.rc-premium-badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.rc-premium-badge i {
+    font-size: 8px;
+}
+
 .rc-theme-badge {
     position: absolute;
-    top: -6px;
+    bottom: -6px;
     right: -6px;
     width: 24px;
     height: 24px;
@@ -693,6 +764,23 @@ $completionPercentage = calculateCompletion($data);
     align-items: center;
     justify-content: center;
     font-size: 12px;
+}
+
+.rc-theme-warning {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    color: #856404;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rc-theme-warning i {
+    color: #f59e0b;
 }
 
 /* Stats Grid */
@@ -880,6 +968,19 @@ $completionPercentage = calculateCompletion($data);
     color: #64748b;
     margin: 0 0 24px 0;
     line-height: 1.6;
+}
+
+.rc-fallback-options {
+    margin-top: 20px;
+}
+
+.rc-fallback-options p {
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.rc-fallback-options .rc-btn {
+    margin: 4px;
 }
 
 /* Page Indicator */
@@ -1252,7 +1353,7 @@ function shareResume() {
 
 // Download shortcut
 function downloadResume() {
-    window.location.href = `<?= BASE_URL; ?>?page=download&theme=<?= $theme; ?>`;
+    window.location.href = `<?= BASE_URL; ?>?page=download&theme=<?= urlencode($activeTheme['slug']); ?>`;
 }
 
 // Theme switching with smooth transition
