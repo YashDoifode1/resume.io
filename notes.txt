@@ -1,0 +1,191 @@
+You are working on a PHP-based Resume Builder web application with a separate Admin Panel.
+The project uses core PHP (no framework), PDO, MySQL, and a modular include-based architecture.
+
+⚠️ DO NOT change the existing file structure unless explicitly asked.
+⚠️ DO NOT invent new folders randomly.
+⚠️ All solutions must align with the existing structure.
+
+📁 FINAL & FIXED FILE STRUCTURE (DO NOT CHANGE)
+resume-builder/
+│
+├── index.php                     # Main public router
+├── config/
+│   ├── constants.php             # Paths, BASE_URL, app config
+│   └── database.php              # PDO connection
+│
+├── components/                   # Public UI components
+│   ├── header.php
+│   ├── navbar.php
+│   └── footer.php
+│
+├── pages/                        # Public pages
+│   ├── home.php
+│   ├── builder.php
+│   ├── preview.php
+│   ├── contact.php
+│   └── ...
+│
+├── themes/                       # Resume theme templates
+│   ├── theme2-modern.php
+│   ├── theme3-corporate.php
+│   ├── theme4-creative.php
+│   ├── theme5-dark.php
+│   ├── theme6-elegant.php
+│   ├── theme7-tech.php
+│   ├── theme8-minimal.php
+│   ├── theme9-vibrant.php
+│   ├── theme10-executive.php
+│   └── ...
+│
+├── assets/
+│   ├── css/
+│   └── js/
+│
+├── uploads/                      # User uploads
+│
+└── admin/                        # ADMIN PANEL (PROTECTED)
+    │
+    ├── login.php
+    ├── login-action.php
+    ├── logout.php
+    ├── dashboard.php
+    ├── themes.php                # Theme management
+    │
+    ├── includes/
+    │   ├── header.php            # Admin layout header
+    │   ├── sidebar.php           # Admin sidebar
+    │   ├── topbar.php            # Admin top navigation
+    │   └── footer.php            # Admin footer
+    │
+    └── assets/
+        ├── css/
+        └── js/
+
+🧩 ADMIN LAYOUT RULES (CRITICAL)
+
+Admin pages MUST follow this order:
+
+require 'includes/header.php';
+require 'includes/sidebar.php';
+require 'includes/topbar.php';
+
+/* PAGE CONTENT */
+
+require 'includes/footer.php';
+
+
+Sidebar is fixed
+
+Content scrolls
+
+Footer must never behave like sidebar
+
+Footer CSS uses reset strategy (all: unset)
+
+🗄️ DATABASE SCHEMA (AUTHORITATIVE)
+🔐 admins
+CREATE TABLE admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(150) UNIQUE,
+    password VARCHAR(255),
+    role ENUM('admin','super_admin') DEFAULT 'admin',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+🎨 themes
+CREATE TABLE themes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(100) UNIQUE,
+    name VARCHAR(150),
+    description TEXT,
+    icon VARCHAR(10),
+    file_name VARCHAR(150),
+    is_active TINYINT(1) DEFAULT 1,
+    is_premium TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+⚠️ If is_premium is referenced, it MUST exist in DB
+⚠️ Never assume columns — always verify schema
+
+🎯 THEME SYSTEM RULES
+
+Themes are data-driven from DB, NOT hardcoded arrays
+
+Only is_active = 1 themes are shown to users
+
+Admin can:
+
+Add new themes
+
+Upload theme PHP file
+
+Enable / Disable theme
+
+Mark theme as Premium
+
+Public preview loads theme like:
+
+include THEMES_PATH . $theme['file_name'];
+
+🔐 AUTH & SECURITY RULES
+
+Sessions MUST start at top of files using $_SESSION
+
+CSRF tokens must be generated & verified
+
+Passwords use password_hash() & password_verify()
+
+Admin pages must check:
+
+if (!isset($_SESSION['admin_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+🧠 CODING EXPECTATIONS
+
+When fixing or adding features:
+
+✅ Respect existing structure
+✅ Use PDO prepared statements
+✅ No inline SQL in HTML
+✅ No global CSS leaks
+✅ No breaking UI alignment
+✅ Defensive coding (isset checks)
+
+🧪 ERROR CONTEXT YOU MAY SEE
+
+Undefined array key → DB column mismatch
+
+Unknown column → Schema not updated
+
+Footer behaving like sidebar → inherited CSS (fix in footer only)
+
+CSRF invalid → session not started or token mismatch
+
+🧠 YOUR TASK (FOR THE AI)
+
+When I ask you to:
+
+Fix a bug
+
+Add a feature
+
+Improve UI
+
+Extend admin functionality
+
+You must:
+
+Analyze existing structure
+
+Identify exact file(s) to modify
+
+Provide drop-in code, not pseudo
+
+Avoid restructuring unless explicitly asked
+
+Explain why the change is safe

@@ -1,0 +1,54 @@
+resume-builder/
+│
+├── index.php                     # Main public router
+├── config/
+│   ├── constants.php             # Paths, BASE_URL, app config
+│   └── database.php              # PDO connection
+│
+├── components/                   # Public UI components
+│   ├── header.php
+│   ├── navbar.php
+│   └── footer.php
+│
+├── pages/                        # Public pages
+│   ├── home.php
+│   ├── builder.php
+│   ├── preview.php
+│   ├── contact.php
+│   └── ...
+│
+├── themes/                       # Resume theme templates
+│   ├── theme2-modern.php
+│   ├── theme3-corporate.php
+│   ├── theme4-creative.php
+│   ├── theme5-dark.php
+│   ├── theme6-elegant.php
+│   ├── theme7-tech.php
+│   ├── theme8-minimal.php
+│   ├── theme9-vibrant.php
+│   ├── theme10-executive.php
+│   └── ...
+│
+├── assets/
+│   ├── css/
+│   └── js/
+│
+├── uploads/                      # User uploads
+│
+└── admin/                        # ADMIN PANEL (PROTECTED)
+    │
+    ├── login.php
+    ├── login-action.php
+    ├── logout.php
+    ├── dashboard.php
+    ├── themes.php                # Theme management
+    │
+    ├── includes/
+    │   ├── header.php            # Admin layout header
+    │   ├── sidebar.php           # Admin sidebar
+    │   ├── topbar.php            # Admin top navigation
+    │   └── footer.php            # Admin footer
+    │
+    └── assets/
+        ├── css/
+        └── js/

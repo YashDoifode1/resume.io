@@ -6,7 +6,16 @@
  * Modify these values to customize the application behavior.
  */
 
-// ============================================
+// START SESSION FIRST — NOTHING BEFORE THIS
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+define('BASE_URL', 'http://localhost/resume-builder/');
+define('ADMIN_REGISTRATION_ENABLED', true);
+
+require_once __DIR__ . '/db.php';
+
 // Application Settings
 // ============================================
 // Site Information
@@ -18,7 +27,10 @@ define('SITE_KEYWORDS', 'resume, cv, builder, job, career');
 // ============================================
 // URL Configuration
 // ============================================
-define('BASE_URL', 'http://localhost/resume/');
+// define('BASE_URL', 'http://localhost/resume-builder/');
+// define('ADMIN_REGISTRATION_ENABLED', true);
+
+
 define('ASSETS_URL', BASE_URL . 'assets/');
 define('CSS_URL', ASSETS_URL . 'css/');
 define('JS_URL', ASSETS_URL . 'js/');
