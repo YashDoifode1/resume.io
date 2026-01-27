@@ -1,37 +1,61 @@
 <?php
 /**
- * Resume Builder Pro - Main Router
+ * ResumeCraft - Main Public Router
  *
- * Public application entry point.
- * Admin panel is handled separately under /admin
+ * RULES:
+ * - HTML routing ONLY
+ * - PDF generation handled separately
+ * - NO output before headers
  */
 
-// Start session
-session_start();
+// ======================
+// SESSION
+// ======================
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Include configuration
+// ======================
+// CONFIG & CORE
+// ======================
 require_once __DIR__ . '/config/constants.php';
-
-// Include logger
 require_once __DIR__ . '/utils/logger.php';
 
-// Log visitor
+// Logger MUST NOT echo
 $logger = new Logger();
 $logger->logVisitor();
 
-// Get requested page
+// ======================
+// INPUT
+// ======================
 $page = isset($_GET['page']) ? sanitize_input($_GET['page']) : 'home';
 
-/**
- * SECURITY: Block admin access via public router
- * Admin panel must be accessed via /admin/*
- */
+// ======================
+// SECURITY
+// ======================
 if ($page === 'admin') {
-    header('HTTP/1.1 403 Forbidden');
-    exit('Access denied.');
+    http_response_code(403);
+    exit('Access denied');
 }
 
-// List of valid public pages
+// ======================
+// 🔥 PDF DOWNLOAD ROUTE (EARLY EXIT)
+// ======================
+if ($page === 'download') {
+    // IMPORTANT:
+    // - No header/footer
+    // - No HTML
+    // - Direct binary response
+    require_once __DIR__ . '/pages/download.php';
+    exit;
+}
+
+// ======================
+// ALLOWED HTML PAGES
+// ======================
 $valid_pages = [
     'home',
     'about',
@@ -41,144 +65,85 @@ $valid_pages = [
     'faq',
     'privacy',
     'terms',
-    'download',
-    'new',
-    'ui'
+    'new'
 ];
 
-/**
- * Handle PDF download separately
- */
-if ($page === 'download') {
-    require_once __DIR__ . '/utils/pdf-generator.php';
-
-    if (!isset($_SESSION['resume_data'])) {
-        header('HTTP/1.1 400 Bad Request');
-        echo 'Error: No resume data found.';
-        exit;
-    }
-
-    $data = $_SESSION['resume_data'];
-    $theme = isset($_GET['theme']) ? sanitize_input($_GET['theme']) : 'classic';
-
-    $validThemes = [
-        'classic', 'modern', 'corporate', 'creative', 'dark',
-        'elegant', 'tech', 'minimal', 'vibrant', 'executive'
-    ];
-
-    if (!in_array($theme, $validThemes)) {
-        $theme = 'classic';
-    }
-
-    $themeFiles = [
-        'classic'   => 'theme1-classic.php',
-        'modern'    => 'theme2-modern.php',
-        'corporate' => 'theme3-corporate.php',
-        'creative'  => 'theme4-creative.php',
-        'dark'      => 'theme5-dark.php',
-        'elegant'   => 'theme6-elegant.php',
-        'tech'      => 'theme7-tech.php',
-        'minimal'   => 'theme8-minimal.php',
-        'vibrant'   => 'theme9-vibrant.php',
-        'executive' => 'theme10-executive.php'
-    ];
-
-    ob_start();
-    include THEMES_PATH . $themeFiles[$theme];
-    $html = ob_get_clean();
-
-    $html = '<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: Arial, sans-serif; }
-            .resume-wrapper { max-width: 8.5in; margin: auto; }
-        </style>
-    </head>
-    <body>' . $html . '</body>
-    </html>';
-
-    $fullName = $data['personal']['fullName'] ?? 'resume';
-    $filename = 'resume_' . str_replace(' ', '_', $fullName) . '.pdf';
-
-    $pdf = new PDFGenerator();
-    $pdf->generatePDF($html, $filename);
-    exit;
-}
-
-// Validate page
-if (!in_array($page, $valid_pages)) {
+// Fallback
+if (!in_array($page, $valid_pages, true)) {
     $page = 'home';
 }
 
-// Page metadata
+// ======================
+// PAGE METADATA
+// ======================
+$page_title = 'ResumeCraft';
+$page_js = null;
+
 switch ($page) {
     case 'home':
         $page_title = 'Home';
         break;
+
     case 'about':
         $page_title = 'About';
         break;
+
     case 'builder':
-        $page_title = 'Resume Builder';
+        $page_title = 'Build Resume';
         $page_js = 'builder.js';
         break;
+
     case 'preview':
         $page_title = 'Preview Resume';
         break;
+
     case 'contact':
         $page_title = 'Contact';
         break;
+
     case 'faq':
         $page_title = 'FAQ';
         break;
+
     case 'privacy':
         $page_title = 'Privacy Policy';
         break;
+
     case 'terms':
         $page_title = 'Terms of Service';
         break;
+
     case 'new':
         $page_title = 'New';
         break;
-    case 'ui':
-        $page_title = 'UI';
-        break;
-    default:
-        $page_title = 'Resume Builder';
 }
 
-// Header
+// ======================
+// HTML OUTPUT STARTS
+// ======================
 require_once COMPONENTS_PATH . 'header.php';
+require_once COMPONENTS_PATH . 'navbar.php';
 ?>
 
-<!-- Navbar -->
-<?php require_once COMPONENTS_PATH . 'navbar.php'; ?>
-
-<!-- Main Content -->
 <main>
 <?php
 $page_file = PAGES_PATH . $page . '.php';
 
 if (file_exists($page_file)) {
-    require_once $page_file;
+    require $page_file;
 } else {
+    http_response_code(404);
     echo '<h1>404 - Page Not Found</h1>';
 }
 ?>
 </main>
 
-<!-- Footer -->
-<?php require_once COMPONENTS_PATH . 'footer.php'; ?>
-
 <?php
-/**
- * ======================
- * Utility Functions
- * ======================
- */
+require_once COMPONENTS_PATH . 'footer.php';
 
+// ======================
+// UTILITIES
+// ======================
 function sanitize_input($input) {
     return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
 }
@@ -195,18 +160,11 @@ function generate_csrf_token() {
 }
 
 function verify_csrf_token($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
-}
-
-/**
- * Admin helpers
- */
-function is_admin_logged_in() {
-    return isset($_SESSION['admin_id']);
+    return isset($_SESSION['csrf_token']) &&
+           hash_equals($_SESSION['csrf_token'], $token);
 }
 
 function redirect($url) {
     header('Location: ' . $url);
     exit;
 }
-?>

@@ -1,30 +1,48 @@
-# Enable mod_rewrite
+# Enable rewrite
 RewriteEngine On
-RewriteBase /resume/
+RewriteBase /resume-builder2/
 
+# -------------------------------------------------
+# EXCLUDE DIRECT PDF DOWNLOAD ENDPOINT
+# -------------------------------------------------
+RewriteRule ^download\.php$ - [L]
+RewriteRule ^pages/download\.php$ - [L]
+
+# -------------------------------------------------
+# ROUTER (SPA-style routing)
+# -------------------------------------------------
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [L,QSA]
+RewriteRule ^ index.php [L,QSA]
+
+# -------------------------------------------------
+# SECURITY
+# -------------------------------------------------
 
 # Disable directory listing
 Options -Indexes
 
-# Allow PHP
-<FilesMatch "\.php$">
+# Protect sensitive files
+<FilesMatch "(\.env|config\.php|composer\.json|composer\.lock|\.htaccess)">
+    Require all denied
+</FilesMatch>
+
+# -------------------------------------------------
+# ALLOW FILE TYPES
+# -------------------------------------------------
+
+<FilesMatch "\.(php)$">
     Require all granted
 </FilesMatch>
 
-# Allow assets
 <FilesMatch "\.(css|js|jpg|jpeg|png|gif|webp|svg|woff|woff2|ttf|eot)$">
     Require all granted
 </FilesMatch>
 
-# Protect config files
-<FilesMatch "(\.env|config\.php|\.htaccess)">
-    Require all denied
-</FilesMatch>
+# -------------------------------------------------
+# PERFORMANCE
+# -------------------------------------------------
 
-# Gzip
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/css application/javascript
 </IfModule>

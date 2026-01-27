@@ -1,115 +1,167 @@
 <?php
 /**
+ * ==========================================================
  * Resume Builder - Global Constants Configuration
- * 
- * This file contains all global constants used throughout the application.
- * Modify these values to customize the application behavior.
+ * ==========================================================
+ * Loads environment variables and defines all global constants
+ * used throughout the application.
  */
 
-// START SESSION FIRST — NOTHING BEFORE THIS
+// ==========================================================
+// Session (must be first)
+// ==========================================================
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-define('BASE_URL', 'http://localhost/resume-builder/');
-define('ADMIN_REGISTRATION_ENABLED', true);
-
+// ==========================================================
+// Load Environment & DB
+// ==========================================================
+require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/db.php';
 
+// ==========================================================
+// Application Core
+// ==========================================================
+define('APP_NAME', env('APP_NAME', 'Resume Builder'));
+define('APP_ENV', env('APP_ENV', 'local'));
+define('APP_DEBUG', filter_var(env('APP_DEBUG', false), FILTER_VALIDATE_BOOLEAN));
 
-// config/constants.php
+define('BASE_URL', rtrim(env('BASE_URL'), '/') . '/');
+define('ADMIN_REGISTRATION_ENABLED', filter_var(env('ADMIN_REGISTRATION_ENABLED'), FILTER_VALIDATE_BOOLEAN));
+define('DEFAULT_THEME', env('DEFAULT_THEME', 'modern'));
 
-// Base URLs and paths
-// define('BASE_URL', 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/');
- define('BASE_PATH', dirname(__DIR__) . '/');
-// define('THEMES_PATH', dirname(__DIR__) . '/themes/');
-// define('ASSETS_PATH', BASE_PATH . 'assets/');
+// ==========================================================
+// Root Paths
+// ==========================================================
+define('ROOT_PATH', dirname(__DIR__) . '/');
+define('CONFIG_PATH', ROOT_PATH . 'config/');
+define('ASSETS_PATH', ROOT_PATH . 'assets/');
+define('UPLOADS_PATH', ROOT_PATH . 'uploads/');
+define('THEMES_PATH', ROOT_PATH . 'themes/');
+define('PAGES_PATH', ROOT_PATH . 'pages/');
+define('COMPONENTS_PATH', ROOT_PATH . 'components/');
+define('LOGS_PATH', ROOT_PATH . 'logs/');
 
-// Database configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'resume_builder');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-
-// Default theme
-define('DEFAULT_THEME', 'modern');
-
-// Session configuration
-// define('SESSION_TIMEOUT', 3600); // 1 hour
-
-// File upload configuration
-define('MAX_FILE_SIZE', 2 * 1024 * 1024); // 2MB
-define('ALLOWED_IMAGE_TYPES', ['jpg', 'jpeg', 'png', 'gif']);
-// define('UPLOADS_PATH', BASE_PATH . 'uploads/');
-
-// PDF configuration
-define('PDF_DEFAULT_FONT', 'DejaVu Sans');
-define('PDF_DPI', 96);
-define('PDF_PAPER_SIZE', 'A4');
-define('PDF_ORIENTATION', 'portrait');
-
-
-// Application Settings
-// ============================================
-// Site Information
-define('SITE_NAME', 'resume-builder.gt.tc');
-define('SITE_DESCRIPTION', 'Create professional resumes in minutes with our easy-to-use resume builder');
-define('SITE_AUTHOR', 'Yash Doifode');
-define('SITE_KEYWORDS', 'resume, cv, builder, job, career');
-
-// ============================================
-// URL Configuration
-// ============================================
-// define('BASE_URL', 'http://localhost/resume-builder/');
-// define('ADMIN_REGISTRATION_ENABLED', true);
-
-
+// ==========================================================
+// URLs
+// ==========================================================
 define('ASSETS_URL', BASE_URL . 'assets/');
 define('CSS_URL', ASSETS_URL . 'css/');
 define('JS_URL', ASSETS_URL . 'js/');
 define('IMAGES_URL', ASSETS_URL . 'images/');
+define('UPLOADS_URL', BASE_URL . 'uploads/');
 
-// ============================================
-// File Paths
-// ============================================
-define('ROOT_PATH', __DIR__ . '/../');
-define('ASSETS_PATH', ROOT_PATH . 'assets/');
-define('COMPONENTS_PATH', ROOT_PATH . 'components/');
-define('PAGES_PATH', ROOT_PATH . 'pages/');
-define('THEMES_PATH', ROOT_PATH . 'themes/');
-define('UPLOADS_PATH', ROOT_PATH . 'uploads/');
-define('CONFIG_PATH', __DIR__ . '/');
+// ==========================================================
+// Database
+// ==========================================================
+define('DB_HOST', env('DB_HOST'));
+define('DB_NAME', env('DB_NAME'));
+define('DB_USER', env('DB_USER'));
+define('DB_PASS', env('DB_PASS'));
+define('DB_CHARSET', 'utf8mb4');
 
-// ============================================
+// ==========================================================
+// Site Information
+// ==========================================================
+define('SITE_NAME', env('SITE_NAME'));
+define('SITE_DESCRIPTION', env('SITE_DESCRIPTION'));
+define('SITE_AUTHOR', env('SITE_AUTHOR'));
+define('SITE_KEYWORDS', env('SITE_KEYWORDS'));
+
+// ==========================================================
+// Contact Information
+// ==========================================================
+define('CONTACT_EMAIL', env('CONTACT_EMAIL'));
+define('CONTACT_PHONE', env('CONTACT_PHONE'));
+define('CONTACT_ADDRESS', env('CONTACT_ADDRESS'));
+define('CONTACT_BUSINESS_HOURS', 'Monday – Friday, 9:00 AM – 6:00 PM IST');
+
+// ==========================================================
+// Owner Information
+// ==========================================================
+define('OWNER_NAME', 'Yash Doifode');
+define('OWNER_TITLE', 'Founder & Developer');
+define('OWNER_LOCATION', 'Nagpur, Maharashtra');
+define('OWNER_BIO', 'Passionate about creating tools that help professionals build their careers');
+
+// ==========================================================
 // Upload Configuration
-// ============================================
+// ==========================================================
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
-define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+define('MAX_IMAGE_SIZE', 2 * 1024 * 1024); // 2MB
 define('UPLOAD_DIRECTORY', 'uploads/');
+define('ALLOWED_IMAGE_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+define('ALLOWED_DOC_EXTENSIONS', ['pdf', 'doc', 'docx']);
 
-// ============================================
+// ==========================================================
 // Session Configuration
-// ============================================
-define('SESSION_TIMEOUT', 3600); // 1 hour in seconds
+// ==========================================================
 define('SESSION_NAME', 'resume_builder_session');
+define('SESSION_TIMEOUT', 3600); // 1 hour
+define('SESSION_REGENERATE_TIME', 300);
 
-// ============================================
+// ==========================================================
 // PDF Configuration
-// ============================================
-define('PDF_LIBRARY', 'dompdf'); // 'dompdf' or 'mpdf'
+// ==========================================================
+define('PDF_LIBRARY', 'dompdf'); // dompdf | mpdf
+define('PDF_FONT', 'DejaVu Sans');
 define('PDF_FONT_SIZE', 11);
+define('PDF_DPI', 96);
+define('PDF_PAPER_SIZE', 'A4');
+define('PDF_ORIENTATION', 'portrait');
 define('PDF_MARGIN_TOP', 10);
 define('PDF_MARGIN_BOTTOM', 10);
 define('PDF_MARGIN_LEFT', 10);
 define('PDF_MARGIN_RIGHT', 10);
 
-// ============================================
+// ==========================================================
+// Feature Flags
+// ==========================================================
+define('ENABLE_ANALYTICS', filter_var(env('ENABLE_ANALYTICS'), FILTER_VALIDATE_BOOLEAN));
+define('ENABLE_SOCIAL_SHARE', filter_var(env('ENABLE_SOCIAL_SHARE'), FILTER_VALIDATE_BOOLEAN));
+define('ENABLE_DOWNLOAD_TRACKING', filter_var(env('ENABLE_DOWNLOAD_TRACKING'), FILTER_VALIDATE_BOOLEAN));
+define('ENABLE_CONTACT_CSV_LOG', true);
+
+// ==========================================================
+// Security
+// ==========================================================
+define('CSRF_TOKEN_LENGTH', 32);
+define('HASH_ALGORITHM', 'sha256');
+define('PASSWORD_MIN_LENGTH', 8);
+define('LOGIN_ATTEMPT_LIMIT', 5);
+
+// ==========================================================
+// Validation Rules
+// ==========================================================
+define('MIN_NAME_LENGTH', 2);
+define('MAX_NAME_LENGTH', 100);
+define('MIN_PHONE_LENGTH', 7);
+define('MAX_PHONE_LENGTH', 20);
+define('MAX_BIO_LENGTH', 1000);
+
+// ==========================================================
+// Logging
+// ==========================================================
+define('LOG_IP_ADDRESS', true);
+define('LOG_USER_AGENT', true);
+define('LOG_FINGERPRINT', true);
+
+// ==========================================================
+// Social Media
+// ==========================================================
+define('SOCIAL_TWITTER', 'https://twitter.com');
+define('SOCIAL_LINKEDIN', 'https://linkedin.com');
+define('SOCIAL_GITHUB', 'https://github.com');
+define('SOCIAL_FACEBOOK', 'https://facebook.com');
+
+// ==========================================================
 // Theme Configuration
-// ============================================
-$THEMES = [
+// ==========================================================
+define('THEMES_AVAILABLE', [
     'classic' => [
         'name' => 'Classic Professional',
-        'description' => 'Traditional, clean, and professional',
+        'description' => 'Traditional and clean professional layout',
         'file' => 'theme1-classic.php'
     ],
     'modern' => [
@@ -119,7 +171,7 @@ $THEMES = [
     ],
     'corporate' => [
         'name' => 'Corporate Blue',
-        'description' => 'Professional blue-themed layout',
+        'description' => 'Professional corporate-style theme',
         'file' => 'theme3-corporate.php'
     ],
     'creative' => [
@@ -134,12 +186,12 @@ $THEMES = [
     ],
     'elegant' => [
         'name' => 'Elegant Gold',
-        'description' => 'Luxury design with gold accents',
+        'description' => 'Luxury-inspired resume design',
         'file' => 'theme6-elegant.php'
     ],
     'tech' => [
         'name' => 'Tech Startup',
-        'description' => 'Modern tech industry focused',
+        'description' => 'Clean and modern tech-focused design',
         'file' => 'theme7-tech.php'
     ],
     'minimal' => [
@@ -149,71 +201,16 @@ $THEMES = [
     ],
     'vibrant' => [
         'name' => 'Vibrant Colors',
-        'description' => 'Colorful and energetic design',
+        'description' => 'Colorful and energetic resume layout',
         'file' => 'theme9-vibrant.php'
     ],
     'executive' => [
         'name' => 'Executive Premium',
-        'description' => 'Premium design for executives',
+        'description' => 'Premium layout for senior executives',
         'file' => 'theme10-executive.php'
-    ]
-];
+    ],
+]);
 
-define('THEMES_AVAILABLE', $THEMES);
-
-// ============================================
-// Social Media Links
-// ============================================
-define('SOCIAL_TWITTER', 'https://twitter.com');
-define('SOCIAL_LINKEDIN', 'https://linkedin.com');
-define('SOCIAL_GITHUB', 'https://github.com');
-define('SOCIAL_FACEBOOK', 'https://facebook.com');
-
-// ============================================
-// Contact Information (Editable)
-// ============================================
-define('CONTACT_EMAIL', 'yashdoifode1439@gmail.com');
-define('CONTACT_PHONE', '+91 (XXX) XXX-XXXX');
-define('CONTACT_ADDRESS', ' Nagpur, Maharashtra');
-define('CONTACT_BUSINESS_HOURS', 'Monday - Friday, 9:00 AM - 6:00 PM IST');
-
-// ============================================
-// Owner Information
-// ============================================
-define('OWNER_NAME', 'Yash Doifode');
-define('OWNER_TITLE', 'Founder & Developer');
-define('OWNER_COLLEGE', '');
-define('OWNER_LOCATION', 'Nagpur, Maharashtra');
-define('OWNER_BIO', 'Passionate about creating tools that help professionals build their careers');
-
-// ============================================
-// Contact Form Settings
-// ============================================
-define('ENABLE_CONTACT_CSV_LOG', true);
-define('CONTACT_CSV_PATH', ROOT_PATH . 'logs/');
-define('LOG_IP_ADDRESS', true);
-define('LOG_USER_AGENT', true);
-define('LOG_FINGERPRINT', true);
-
-// ============================================
-// Feature Flags
-// ============================================
-define('ENABLE_ANALYTICS', false);
-define('ENABLE_SOCIAL_SHARE', true);
-define('ENABLE_DOWNLOAD_TRACKING', false);
-
-// ============================================
-// Security
-// ============================================
-define('CSRF_TOKEN_LENGTH', 32);
-define('HASH_ALGORITHM', 'sha256');
-
-// ============================================
-// Validation Rules
-// ============================================
-define('MIN_NAME_LENGTH', 2);
-define('MAX_NAME_LENGTH', 100);
-define('MIN_PHONE_LENGTH', 7);
-define('MAX_PHONE_LENGTH', 20);
-
-?>
+// ==========================================================
+// End of Configuration
+// ==========================================================
