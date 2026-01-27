@@ -1,5 +1,5 @@
 <?php
-require_once "includes/auth.php";
+require_once "middleware/auth.php";
 require_once "../config/database.php";
 
 $id = (int) $_GET['id'];

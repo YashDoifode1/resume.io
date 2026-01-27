@@ -1,7 +1,12 @@
 <?php
 /**
- * Resume Preview Page - Professional UI with Simple Theme Loading
+ * Resume Preview Page - Updated with Database Theme Loading
  */
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+require_once __DIR__ . '/../config/database.php';
 
 if (!isset($_SESSION['resume_data'])) {
     header('Location: ' . BASE_URL . '?page=builder');
@@ -9,51 +14,117 @@ if (!isset($_SESSION['resume_data'])) {
 }
 
 $data = $_SESSION['resume_data'];
-$theme = $_GET['theme'] ?? 'modern';
+$requestedThemeSlug = $_GET['theme'] ?? '';
 
-$page_title = 'Preview Resume | ResumeCraft';
-$page_description = 'Preview and customize your resume before downloading';
-
-// Theme configuration - UPDATED TO MATCH INDEX.PHP
-$themeFiles = [
-    'modern'      => 'theme2-modern.php',
-    'corporate'   => 'theme3-corporate.php',
-    'creative'    => 'theme4-creative.php',
-    'dark'        => 'theme5-dark.php',
-    'elegant'     => 'theme6-elegant.php',
-    'tech'        => 'theme7-tech.php',
-    'minimal'     => 'theme8-minimal.php',
-    'vibrant'     => 'theme9-vibrant.php',
-    'executive'   => 'theme10-executive.php',
-    'gradient'    => 'theme11-gradient.php',
-    'sidebar'     => 'theme12-sidebar.php',
-    'minimalist'  => 'theme13-minimalist.php',
-    'colorful'    => 'theme14-colorful.php',
-    'timeline'    => 'theme15-timeline.php'
-];
-
-// Validate theme
-if (!isset($themeFiles[$theme])) {
-    $theme = 'modern'; // Default fallback
+// Get all available themes from database
+try {
+    $allThemesStmt = $pdo->query("
+        SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+        FROM themes 
+        WHERE is_active = 1 
+        ORDER BY is_premium DESC, name ASC
+    ");
+    $allThemes = $allThemesStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $allThemes = [];
+    error_log("Error fetching themes: " . $e->getMessage());
 }
 
-// Theme metadata
-$themeMeta = [
-    'modern'      => ['✨', 'Modern Minimal', 'Clean and minimal design for modern professionals'],
-    'corporate'   => ['💼', 'Corporate Blue', 'Formal corporate style for business roles'],
-    'creative'    => ['🎨', 'Creative Portfolio', 'Visual-focused layout for designers and creatives'],
-    'dark'        => ['🌙', 'Dark Mode', 'Sleek modern dark-themed resume'],
-    'elegant'     => ['✨', 'Elegant Gold', 'Premium elegant style with gold accents'],
-    'tech'        => ['💻', 'Tech Startup', 'Modern tech-focused layout for startups and developers'],
-    'minimal'     => ['⚪', 'Ultra Minimal', 'Ultra-clean layout with minimal visual elements'],
-    'vibrant'     => ['🌈', 'Vibrant Colors', 'Bold and colorful design to stand out'],
-    'executive'   => ['👔', 'Executive Premium', 'High-end professional layout for executives'],
-    'gradient'    => ['🌅', 'Gradient Style', 'Smooth gradient backgrounds for a modern look'],
-    'sidebar'     => ['📌', 'Sidebar Layout', 'Sidebar-based structure for clear section separation'],
-    'minimalist'  => ['⬜', 'Minimalist Clean', 'Pure minimalist layout with maximum readability'],
-    'colorful'    => ['🎯', 'Colorful Creative', 'Playful and creative layout with rich colors'],
-    'timeline'    => ['🕒', 'Timeline Resume', 'Chronological timeline-based resume layout']
-];
+// Default fallback theme slug
+$defaultThemeSlug = 'modern';
+$activeTheme = null;
+$themeErrorMessage = '';
+
+// Theme resolution logic - similar to builder page
+try {
+    // If theme slug provided, use it; otherwise use session theme or default
+    if (empty($requestedThemeSlug) && isset($_SESSION['active_theme_slug'])) {
+        $requestedThemeSlug = $_SESSION['active_theme_slug'];
+    }
+    
+    // Fetch the matching active theme from database
+    if (!empty($requestedThemeSlug)) {
+        $stmt = $pdo->prepare("
+            SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+            FROM themes 
+            WHERE slug = :slug AND is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute([':slug' => $requestedThemeSlug]);
+        $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    // If requested theme not found or not active, fallback to default
+    if (!$activeTheme) {
+        $stmt = $pdo->prepare("
+            SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+            FROM themes 
+            WHERE slug = :slug AND is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute([':slug' => $defaultThemeSlug]);
+        $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($activeTheme && !empty($requestedThemeSlug)) {
+            $themeErrorMessage = "Requested theme not available. Using default theme.";
+        }
+    }
+    
+    // If still no theme, fetch first active theme as ultimate fallback
+    if (!$activeTheme && !empty($allThemes)) {
+        $activeTheme = $allThemes[0];
+    }
+    
+    // Store active theme in session for consistency
+    if ($activeTheme) {
+        $_SESSION['active_theme_slug'] = $activeTheme['slug'];
+    } else {
+        throw new Exception("No active themes available in database.");
+    }
+    
+    // Template file validation
+    $templateFile = $activeTheme['file_name'] ?? '';
+    
+    // Security: Only allow alphanumeric, hyphens, underscores, and dots
+    if (!preg_match('/^[a-zA-Z0-9_\-\.]+\.php$/', $templateFile)) {
+        throw new Exception("Invalid template file name format.");
+    }
+    
+    // Prevent directory traversal
+    $templatePath = __DIR__ . '/../themes/' . basename($templateFile);
+    
+    // Verify the template file exists
+    if (!file_exists($templatePath)) {
+        // Try to find any existing template as fallback
+        $fallbackTemplate = 'theme2-modern.php';
+        $templatePath = __DIR__ . '/../themes/' . $fallbackTemplate;
+        
+        if (!file_exists($templatePath)) {
+            throw new Exception("Template file not found.");
+        }
+        
+        $activeTheme['file_name'] = $fallbackTemplate;
+        $themeErrorMessage = "Template file not found. Using fallback template.";
+    }
+    
+} catch (Exception $e) {
+    // Log error in production, show user-friendly message
+    error_log("Theme Error: " . $e->getMessage());
+    $themeErrorMessage = "Theme configuration issue. Using basic layout.";
+    
+    // Ultimate fallback
+    $activeTheme = [
+        'slug' => 'modern',
+        'name' => 'Modern Template',
+        'description' => 'Fallback modern template',
+        'icon' => '✨',
+        'file_name' => 'theme2-modern.php',
+        'is_premium' => 0
+    ];
+}
+
+$page_title = 'Preview Resume | ResumeCraft - ' . htmlspecialchars($activeTheme['name']);
+$page_description = 'Preview and customize your resume before downloading';
 
 // Get profile picture URL
 function getProfilePictureUrl($profilePicture) {
@@ -107,792 +178,6 @@ $completionPercentage = calculateCompletion($data);
     <meta name="description" content="<?= $page_description; ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <style>
-    /* Reset and base styles ONLY for preview page */
-    .rc-preview-container {
-        font-family: 'Inter', sans-serif;
-        min-height: 100vh;
-        background: #f8fafc;
-    }
-
-    .rc-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 20px;
-    }
-
-    /* Navigation */
-    .rc-preview-nav {
-        background: #ffffff;
-        border-bottom: 1px solid #e2e8f0;
-        padding: 16px 0;
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .rc-nav-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .rc-nav-brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .rc-nav-icon {
-        color: #4361ee;
-        font-size: 24px;
-    }
-
-    .rc-nav-title {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 18px;
-        color: #1e293b;
-    }
-
-    .rc-nav-subtitle {
-        color: #64748b;
-        font-size: 14px;
-    }
-
-    .rc-nav-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    /* Buttons */
-    .rc-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 500;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border: 2px solid transparent;
-        background: none;
-        text-decoration: none;
-        font-family: 'Inter', sans-serif;
-    }
-
-    .rc-btn-sm {
-        padding: 8px 16px;
-        font-size: 13px;
-    }
-
-    .rc-btn-primary {
-        background: #4361ee;
-        color: white;
-        border-color: #4361ee;
-    }
-
-    .rc-btn-primary:hover {
-        background: #3a56d4;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
-    }
-
-    .rc-btn-secondary {
-        background: #f1f5f9;
-        color: #475569;
-        border-color: #e2e8f0;
-    }
-
-    .rc-btn-secondary:hover {
-        background: #e2e8f0;
-    }
-
-    .rc-btn-outline {
-        background: transparent;
-        color: #4361ee;
-        border-color: #4361ee;
-    }
-
-    .rc-btn-outline:hover {
-        background: rgba(67, 97, 238, 0.05);
-    }
-
-    .rc-btn-ghost {
-        background: transparent;
-        color: #64748b;
-        border: 1px solid #e2e8f0;
-    }
-
-    .rc-btn-ghost:hover {
-        background: #f8fafc;
-        color: #4361ee;
-    }
-
-    .rc-btn-group {
-        display: flex;
-        gap: 4px;
-    }
-
-    /* Main Content Layout */
-    .rc-preview-main {
-        padding: 24px 0 60px 0;
-    }
-
-    .rc-preview-grid {
-        display: grid;
-        grid-template-columns: 320px 1fr;
-        gap: 24px;
-    }
-
-    @media (max-width: 992px) {
-        .rc-preview-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Sidebar Cards */
-    .rc-sidebar-card {
-        background: white;
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 16px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .rc-card-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-
-    .rc-card-icon {
-        color: #4361ee;
-        font-size: 18px;
-    }
-
-    .rc-card-title {
-        font-family: 'Poppins', sans-serif;
-        font-size: 16px;
-        font-weight: 600;
-        color: #1e293b;
-        margin: 0;
-    }
-
-    /* Progress Circle */
-    .rc-completion-progress {
-        text-align: center;
-    }
-
-    .rc-progress-circle {
-        position: relative;
-        width: 120px;
-        height: 120px;
-        margin: 0 auto 16px auto;
-    }
-
-    .rc-progress-circle svg {
-        transform: rotate(-90deg);
-    }
-
-    .rc-progress-bg {
-        fill: none;
-        stroke: #e2e8f0;
-        stroke-width: 8;
-    }
-
-    .rc-progress-fill {
-        fill: none;
-        stroke: #4361ee;
-        stroke-width: 8;
-        stroke-linecap: round;
-        transition: stroke-dasharray 0.6s ease;
-    }
-
-    .rc-progress-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-family: 'Poppins', sans-serif;
-        font-size: 24px;
-        font-weight: 600;
-        color: #1e293b;
-    }
-
-    .rc-completion-text {
-        color: #64748b;
-        font-size: 14px;
-        margin: 0;
-    }
-
-    /* Theme Cards */
-    .rc-theme-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 12px;
-        max-height: 400px;
-        overflow-y: auto;
-        padding-right: 8px;
-    }
-
-    .rc-theme-card {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 16px;
-        background: #f8fafc;
-        border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        position: relative;
-    }
-
-    .rc-theme-card:hover {
-        background: white;
-        border-color: #cbd5e1;
-        transform: translateX(4px);
-    }
-
-    .rc-theme-active {
-        background: #f0f7ff;
-        border-color: #4361ee;
-        box-shadow: 0 2px 8px rgba(67, 97, 238, 0.1);
-    }
-
-    .rc-theme-icon {
-        font-size: 24px;
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: white;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-    }
-
-    .rc-theme-active .rc-theme-icon {
-        background: #4361ee;
-        color: white;
-        border-color: #4361ee;
-    }
-
-    .rc-theme-info {
-        flex: 1;
-    }
-
-    .rc-theme-name {
-        font-family: 'Poppins', sans-serif;
-        font-size: 14px;
-        font-weight: 600;
-        color: #1e293b;
-        margin: 0 0 4px 0;
-    }
-
-    .rc-theme-desc {
-        font-size: 12px;
-        color: #64748b;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    .rc-theme-badge {
-        position: absolute;
-        top: -6px;
-        right: -6px;
-        width: 24px;
-        height: 24px;
-        background: #4361ee;
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-    }
-
-    /* Stats Grid */
-    .rc-stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-    }
-
-    .rc-stat-item {
-        text-align: center;
-        padding: 16px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-    }
-
-    .rc-stat-value {
-        font-family: 'Poppins', sans-serif;
-        font-size: 24px;
-        font-weight: 600;
-        color: #4361ee;
-        margin-bottom: 4px;
-    }
-
-    .rc-stat-label {
-        font-size: 12px;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Tips Card */
-    .rc-tips-card {
-        background: linear-gradient(135deg, #f0f7ff, #f8fafc);
-        border-color: #dbeafe;
-    }
-
-    .rc-tips-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .rc-tip-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .rc-tip-item:last-child {
-        border-bottom: none;
-    }
-
-    .rc-tip-icon {
-        color: #10b981;
-        font-size: 14px;
-        margin-top: 2px;
-        flex-shrink: 0;
-    }
-
-    .rc-tip-item span {
-        font-size: 14px;
-        color: #475569;
-        line-height: 1.5;
-    }
-
-    /* Preview Controls */
-    .rc-preview-controls {
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        margin-bottom: 16px;
-        border: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .rc-controls-left, .rc-controls-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .rc-theme-indicator {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .rc-theme-preview {
-        font-size: 32px;
-        width: 56px;
-        height: 56px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8fafc;
-        border-radius: 10px;
-        border: 2px solid #e2e8f0;
-    }
-
-    .rc-current-theme {
-        font-family: 'Poppins', sans-serif;
-        font-size: 18px;
-        font-weight: 600;
-        color: #1e293b;
-        margin: 0 0 4px 0;
-    }
-
-    .rc-theme-preview-desc {
-        font-size: 14px;
-        color: #64748b;
-        margin: 0;
-    }
-
-    .rc-zoom-text {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        color: #1e293b;
-        min-width: 50px;
-        text-align: center;
-    }
-
-    /* Preview Frame - MINIMAL styling to not interfere with themes */
-    .rc-preview-wrapper {
-        position: relative;
-        background: white;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-        overflow: hidden;
-        margin-bottom: 16px;
-    }
-
-    .rc-preview-frame {
-        width: 100%;
-        min-height: 11in;
-        overflow: auto;
-        padding: 40px;
-        background: #f8fafc;
-        position: relative;
-    }
-
-    /* Theme Content - Let theme use its own styles */
-    .rc-theme-content {
-        width: 100%;
-        height: 100%;
-        background: white;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Theme Error */
-    .rc-theme-error {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: white;
-        padding: 40px;
-    }
-
-    .rc-error-content {
-        text-align: center;
-        max-width: 400px;
-    }
-
-    .rc-error-icon {
-        font-size: 48px;
-        color: #f59e0b;
-        margin-bottom: 20px;
-    }
-
-    .rc-theme-error h3 {
-        font-family: 'Poppins', sans-serif;
-        color: #1e293b;
-        margin: 0 0 12px 0;
-    }
-
-    .rc-theme-error p {
-        color: #64748b;
-        margin: 0 0 24px 0;
-        line-height: 1.6;
-    }
-
-    /* Page Indicator */
-    .rc-page-indicator {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 24px;
-        background: white;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .rc-page-dots {
-        display: flex;
-        gap: 8px;
-    }
-
-    .rc-page-dot {
-        width: 8px;
-        height: 8px;
-        background: #cbd5e1;
-        border-radius: 50%;
-    }
-
-    .rc-page-dot.active {
-        background: #4361ee;
-    }
-
-    .rc-page-text {
-        font-size: 14px;
-        color: #64748b;
-    }
-
-    /* Action Cards */
-    .rc-preview-actions {
-        margin-top: 24px;
-    }
-
-    .rc-action-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-    }
-
-    .rc-action-card {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 20px;
-        background: white;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .rc-action-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-        border-color: #cbd5e1;
-    }
-
-    .rc-action-edit:hover {
-        border-color: #4361ee;
-    }
-
-    .rc-action-download:hover {
-        border-color: #10b981;
-    }
-
-    .rc-action-share:hover {
-        border-color: #8b5cf6;
-    }
-
-    .rc-action-templates:hover {
-        border-color: #f59e0b;
-    }
-
-    .rc-action-icon {
-        font-size: 24px;
-        width: 56px;
-        height: 56px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8fafc;
-        border-radius: 10px;
-        border: 1px solid #e2e8f0;
-        color: #64748b;
-        transition: all 0.2s ease;
-    }
-
-    .rc-action-edit .rc-action-icon {
-        color: #4361ee;
-    }
-
-    .rc-action-download .rc-action-icon {
-        color: #10b981;
-    }
-
-    .rc-action-share .rc-action-icon {
-        color: #8b5cf6;
-    }
-
-    .rc-action-templates .rc-action-icon {
-        color: #f59e0b;
-    }
-
-    .rc-action-card:hover .rc-action-icon {
-        transform: scale(1.1);
-    }
-
-    .rc-action-content {
-        flex: 1;
-    }
-
-    .rc-action-title {
-        font-family: 'Poppins', sans-serif;
-        font-size: 16px;
-        font-weight: 600;
-        color: #1e293b;
-        margin: 0 0 4px 0;
-    }
-
-    .rc-action-desc {
-        font-size: 13px;
-        color: #64748b;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    /* FAB */
-    .rc-fab-container {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        z-index: 1000;
-    }
-
-    .rc-fab {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 16px 24px;
-        background: #4361ee;
-        color: white;
-        border: none;
-        border-radius: 50px;
-        box-shadow: 0 8px 24px rgba(67, 97, 238, 0.3);
-        cursor: pointer;
-        font-family: 'Inter', sans-serif;
-        font-weight: 500;
-        font-size: 16px;
-        transition: all 0.3s ease;
-    }
-
-    .rc-fab:hover {
-        background: #3a56d4;
-        transform: translateY(-2px);
-        box-shadow: 0 12px 32px rgba(67, 97, 238, 0.4);
-    }
-
-    .rc-fab .rc-fab-text {
-        max-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        transition: max-width 0.3s ease;
-    }
-
-    .rc-fab:hover .rc-fab-text {
-        max-width: 200px;
-    }
-
-    /* Scrollbar Styling */
-    .rc-preview-frame::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    .rc-preview-frame::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 4px;
-    }
-
-    .rc-preview-frame::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-
-    .rc-preview-frame::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .rc-preview-nav {
-            padding: 12px 0;
-        }
-        
-        .rc-nav-content {
-            flex-direction: column;
-            gap: 16px;
-            align-items: stretch;
-        }
-        
-        .rc-nav-actions {
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .rc-preview-controls {
-            flex-direction: column;
-            gap: 16px;
-            align-items: stretch;
-        }
-        
-        .rc-controls-left, .rc-controls-right {
-            justify-content: center;
-        }
-        
-        .rc-action-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .rc-preview-frame {
-            padding: 20px;
-            min-height: auto;
-        }
-        
-        .rc-fab {
-            padding: 16px;
-        }
-        
-        .rc-fab .rc-fab-text {
-            display: none;
-        }
-    }
-
-    /* Print Styles */
-    @media print {
-        .rc-preview-container {
-            background: white;
-        }
-        
-        .rc-preview-nav,
-        .rc-preview-sidebar,
-        .rc-preview-controls,
-        .rc-preview-actions,
-        .rc-fab-container {
-            display: none;
-        }
-        
-        .rc-preview-grid {
-            display: block;
-            margin: 0;
-        }
-        
-        .rc-preview-wrapper {
-            border: none;
-            box-shadow: none;
-            margin: 0;
-        }
-        
-        .rc-preview-frame {
-            padding: 0;
-            min-height: auto;
-            background: white;
-            overflow: visible;
-        }
-        
-        .rc-theme-content {
-            box-shadow: none;
-            margin: 0;
-            width: 100%;
-            page-break-inside: avoid;
-        }
-        
-        @page {
-            margin: 0.5in;
-            size: A4;
-        }
-        
-        body {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            background: white;
-            margin: 0;
-        }
-    }
-    </style>
 </head>
 <body>
 <!-- Preview Page Container -->
@@ -905,13 +190,18 @@ $completionPercentage = calculateCompletion($data);
                 <div class="rc-nav-brand">
                     <i class="fas fa-file-alt rc-nav-icon"></i>
                     <span class="rc-nav-title">ResumeCraft Preview</span>
-                    <span class="rc-nav-subtitle">/ Theme: <?= $themeMeta[$theme][1]; ?></span>
+                    <span class="rc-nav-subtitle">/ Theme: <?= htmlspecialchars($activeTheme['name']); ?></span>
+                    <?php if ($activeTheme['is_premium']): ?>
+                        <span class="rc-nav-premium">
+                            <i class="fas fa-crown"></i> Premium
+                        </span>
+                    <?php endif; ?>
                 </div>
                 <div class="rc-nav-actions">
-                    <a href="<?= BASE_URL; ?>?page=builder&theme=<?= $theme; ?>" class="rc-btn rc-btn-outline rc-btn-sm">
+                    <a href="<?= BASE_URL; ?>?page=builder&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-btn rc-btn-outline rc-btn-sm">
                         <i class="fas fa-edit"></i> Edit Resume
                     </a>
-                    <a href="<?= BASE_URL; ?>?page=download&theme=<?= $theme; ?>" class="rc-btn rc-btn-primary rc-btn-sm">
+                    <a href="<?= BASE_URL; ?>?page=download&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-btn rc-btn-primary rc-btn-sm">
                         <i class="fas fa-download"></i> Download PDF
                     </a>
                     <button onclick="window.print()" class="rc-btn rc-btn-secondary rc-btn-sm">
@@ -919,6 +209,11 @@ $completionPercentage = calculateCompletion($data);
                     </button>
                 </div>
             </div>
+            <?php if ($themeErrorMessage): ?>
+                <div class="rc-theme-warning">
+                    <i class="fas fa-exclamation-triangle"></i> <?= htmlspecialchars($themeErrorMessage); ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -949,31 +244,41 @@ $completionPercentage = calculateCompletion($data);
                         </div>
                     </div>
                     
-                    <!-- Theme Selection -->
+                    <!-- Theme Selection from Database -->
                     <div class="rc-sidebar-card">
                         <div class="rc-card-header">
                             <i class="fas fa-palette rc-card-icon"></i>
                             <h3 class="rc-card-title">Choose Template</h3>
+                            <span class="rc-theme-count"><?= count($allThemes); ?> available</span>
                         </div>
                         <div class="rc-theme-grid">
-                            <?php foreach ($themeMeta as $key => $meta): ?>
-                                <?php if (isset($themeFiles[$key])): ?>
-                                    <a href="<?= BASE_URL; ?>?page=preview&theme=<?= $key; ?>" 
-                                       class="rc-theme-card <?= $theme === $key ? 'rc-theme-active' : ''; ?>">
-                                        <div class="rc-theme-icon"><?= $meta[0]; ?></div>
-                                        <div class="rc-theme-info">
-                                            <h4 class="rc-theme-name"><?= $meta[1]; ?></h4>
-                                            <p class="rc-theme-desc"><?= $meta[2]; ?></p>
+                            <?php foreach ($allThemes as $themeItem): ?>
+                                <a href="<?= BASE_URL; ?>?page=preview&theme=<?= urlencode($themeItem['slug']); ?>" 
+                                   class="rc-theme-card <?= $activeTheme['slug'] === $themeItem['slug'] ? 'rc-theme-active' : ''; ?>">
+                                    <div class="rc-theme-icon"><?= htmlspecialchars($themeItem['icon']); ?></div>
+                                    <div class="rc-theme-info">
+                                        <h4 class="rc-theme-name"><?= htmlspecialchars($themeItem['name']); ?></h4>
+                                        <p class="rc-theme-desc"><?= htmlspecialchars($themeItem['description']); ?></p>
+                                    </div>
+                                    <?php if ($activeTheme['slug'] === $themeItem['slug']): ?>
+                                        <div class="rc-theme-badge">
+                                            <i class="fas fa-check"></i>
                                         </div>
-                                        <?php if ($theme === $key): ?>
-                                            <div class="rc-theme-badge">
-                                                <i class="fas fa-check"></i>
-                                            </div>
-                                        <?php endif; ?>
-                                    </a>
-                                <?php endif; ?>
+                                    <?php endif; ?>
+                                    <?php if ($themeItem['is_premium']): ?>
+                                        <div class="rc-theme-premium-badge">
+                                            <i class="fas fa-crown"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </a>
                             <?php endforeach; ?>
                         </div>
+                        <?php if (empty($allThemes)): ?>
+                            <div class="rc-no-themes">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <p>No themes available. Please contact administrator.</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     
                     <!-- Quick Stats -->
@@ -1037,10 +342,15 @@ $completionPercentage = calculateCompletion($data);
                     <div class="rc-preview-controls">
                         <div class="rc-controls-left">
                             <div class="rc-theme-indicator">
-                                <span class="rc-theme-preview"><?= $themeMeta[$theme][0]; ?></span>
+                                <span class="rc-theme-preview"><?= htmlspecialchars($activeTheme['icon']); ?></span>
                                 <div>
-                                    <h4 class="rc-current-theme"><?= $themeMeta[$theme][1]; ?></h4>
-                                    <p class="rc-theme-preview-desc"><?= $themeMeta[$theme][2]; ?></p>
+                                    <h4 class="rc-current-theme"><?= htmlspecialchars($activeTheme['name']); ?></h4>
+                                    <p class="rc-theme-preview-desc"><?= htmlspecialchars($activeTheme['description']); ?></p>
+                                    <?php if ($activeTheme['is_premium']): ?>
+                                        <span class="rc-theme-premium-indicator">
+                                            <i class="fas fa-crown"></i> Premium Theme
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -1063,39 +373,48 @@ $completionPercentage = calculateCompletion($data);
                         </div>
                     </div>
                     
-                    <!-- Resume Preview - SIMPLE THEME LOADING -->
+                    <!-- Resume Preview - Database Theme Loading -->
                     <div class="rc-preview-wrapper">
                         <div class="rc-preview-frame" id="rcPreviewFrame">
                             <?php
-                                // Pass data to theme
-                                $data['personal']['processedProfilePicture'] = $profilePictureUrl;
-                                $themeFile = THEMES_PATH . $themeFiles[$theme];
-                                
-                                // Check if file exists
-                                if (file_exists($themeFile)) {
-                                    // Include theme file directly
-                                    echo '<div class="rc-theme-content">';
-                                    include $themeFile;
-                                    echo '</div>';
-                                } else {
-                                    // Fallback to modern theme
-                                    $fallbackTheme = 'modern';
-                                    $fallbackFile = THEMES_PATH . $themeFiles[$fallbackTheme];
+                                try {
+                                    // Pass resume data to template
+                                    $data['personal']['processedProfilePicture'] = $profilePictureUrl;
+                                    $themeSlug = $activeTheme['slug'];
+                                    $isPremium = $activeTheme['is_premium'];
                                     
-                                    if (file_exists($fallbackFile)) {
+                                    // Include the selected theme template
+                                    $templatePath = __DIR__ . '/../themes/' . basename($activeTheme['file_name']);
+                                    
+                                    if (file_exists($templatePath)) {
+                                        ob_start();
+                                        include $templatePath;
+                                        $themeContent = ob_get_clean();
+                                        
                                         echo '<div class="rc-theme-content">';
-                                        include $fallbackFile;
+                                        echo $themeContent;
                                         echo '</div>';
                                     } else {
-                                        // Ultimate fallback - basic HTML
-                                        echo '<div class="rc-theme-error">';
-                                        echo '<div class="rc-error-content">';
-                                        echo '<i class="fas fa-exclamation-triangle rc-error-icon"></i>';
-                                        echo '<h3>Theme Not Available</h3>';
-                                        echo '<p>The selected theme could not be loaded.</p>';
-                                        echo '<p><a href="' . BASE_URL . '?page=preview&theme=modern" class="rc-btn rc-btn-primary">Use Modern Theme</a></p>';
-                                        echo '</div>';
-                                        echo '</div>';
+                                        throw new Exception("Template file not found");
+                                    }
+                                    
+                                } catch (Exception $e) {
+                                    // Fallback template rendering
+                                    echo '<div class="rc-theme-error">';
+                                    echo '<div class="rc-error-content">';
+                                    echo '<i class="fas fa-exclamation-triangle rc-error-icon"></i>';
+                                    echo '<h3>Template Rendering Error</h3>';
+                                    echo '<p>The selected theme could not be loaded. Using basic layout.</p>';
+                                    echo '<a href="' . BASE_URL . '?page=preview&theme=modern" class="rc-btn rc-btn-primary">';
+                                    echo 'Use Modern Theme';
+                                    echo '</a>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                    
+                                    // Include fallback template
+                                    $fallbackPath = __DIR__ . '/../themes/theme2-modern.php';
+                                    if (file_exists($fallbackPath)) {
+                                        include $fallbackPath;
                                     }
                                 }
                             ?>
@@ -1115,7 +434,7 @@ $completionPercentage = calculateCompletion($data);
                     <!-- Action Buttons -->
                     <div class="rc-preview-actions">
                         <div class="rc-action-grid">
-                            <a href="<?= BASE_URL; ?>?page=builder&theme=<?= $theme; ?>" class="rc-action-card rc-action-edit">
+                            <a href="<?= BASE_URL; ?>?page=builder&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-action-card rc-action-edit">
                                 <i class="fas fa-edit rc-action-icon"></i>
                                 <div class="rc-action-content">
                                     <h4 class="rc-action-title">Edit Resume</h4>
@@ -1123,7 +442,7 @@ $completionPercentage = calculateCompletion($data);
                                 </div>
                             </a>
                             
-                            <a href="<?= BASE_URL; ?>?page=download&theme=<?= $theme; ?>" class="rc-action-card rc-action-download">
+                            <a href="<?= BASE_URL; ?>?page=download&theme=<?= urlencode($activeTheme['slug']); ?>" class="rc-action-card rc-action-download">
                                 <i class="fas fa-file-pdf rc-action-icon"></i>
                                 <div class="rc-action-content">
                                     <h4 class="rc-action-title">Download PDF</h4>
@@ -1164,6 +483,882 @@ $completionPercentage = calculateCompletion($data);
     </div>
     
 </div>
+
+<!-- ============================================
+     PROFESSIONAL PREVIEW UI STYLES
+============================================= -->
+<style>
+/* Reset and base styles ONLY for preview page */
+.rc-preview-container {
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    background: #f8fafc;
+}
+
+.rc-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Navigation */
+.rc-preview-nav {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.rc-nav-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rc-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.rc-nav-icon {
+    color: #4361ee;
+    font-size: 24px;
+}
+
+.rc-nav-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: #1e293b;
+}
+
+.rc-nav-subtitle {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.rc-nav-premium {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rc-nav-premium i {
+    font-size: 10px;
+}
+
+.rc-nav-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.rc-theme-warning {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    color: #856404;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rc-theme-warning i {
+    color: #f59e0b;
+}
+
+/* Buttons */
+.rc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    background: none;
+    text-decoration: none;
+    font-family: 'Inter', sans-serif;
+}
+
+.rc-btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+.rc-btn-primary {
+    background: #4361ee;
+    color: white;
+    border-color: #4361ee;
+}
+
+.rc-btn-primary:hover {
+    background: #3a56d4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+}
+
+.rc-btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.rc-btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.rc-btn-outline {
+    background: transparent;
+    color: #4361ee;
+    border-color: #4361ee;
+}
+
+.rc-btn-outline:hover {
+    background: rgba(67, 97, 238, 0.05);
+}
+
+.rc-btn-ghost {
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.rc-btn-ghost:hover {
+    background: #f8fafc;
+    color: #4361ee;
+}
+
+.rc-btn-group {
+    display: flex;
+    gap: 4px;
+}
+
+/* Main Content Layout */
+.rc-preview-main {
+    padding: 24px 0 60px 0;
+}
+
+.rc-preview-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 992px) {
+    .rc-preview-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sidebar Cards */
+.rc-sidebar-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.rc-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.rc-card-icon {
+    color: #4361ee;
+    font-size: 18px;
+}
+
+.rc-card-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.rc-theme-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+/* Progress Circle */
+.rc-completion-progress {
+    text-align: center;
+}
+
+.rc-progress-circle {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 16px auto;
+}
+
+.rc-progress-circle svg {
+    transform: rotate(-90deg);
+}
+
+.rc-progress-bg {
+    fill: none;
+    stroke: #e2e8f0;
+    stroke-width: 8;
+}
+
+.rc-progress-fill {
+    fill: none;
+    stroke: #4361ee;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.6s ease;
+}
+
+.rc-progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Poppins', sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.rc-completion-text {
+    color: #64748b;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Theme Cards */
+.rc-theme-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.rc-theme-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.rc-theme-card:hover {
+    background: white;
+    border-color: #cbd5e1;
+    transform: translateX(4px);
+}
+
+.rc-theme-active {
+    background: #f0f7ff;
+    border-color: #4361ee;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.1);
+}
+
+.rc-theme-icon {
+    font-size: 24px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.rc-theme-active .rc-theme-icon {
+    background: #4361ee;
+    color: white;
+    border-color: #4361ee;
+}
+
+.rc-theme-info {
+    flex: 1;
+}
+
+.rc-theme-name {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.rc-theme-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.rc-theme-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 24px;
+    height: 24px;
+    background: #4361ee;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.rc-theme-premium-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.rc-no-themes {
+    text-align: center;
+    padding: 20px;
+    color: #64748b;
+}
+
+.rc-no-themes i {
+    font-size: 32px;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.rc-no-themes p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Stats Grid */
+.rc-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.rc-stat-item {
+    text-align: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.rc-stat-value {
+    font-family: 'Poppins', sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: #4361ee;
+    margin-bottom: 4px;
+}
+
+.rc-stat-label {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Tips Card */
+.rc-tips-card {
+    background: linear-gradient(135deg, #f0f7ff, #f8fafc);
+    border-color: #dbeafe;
+}
+
+.rc-tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.rc-tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.rc-tip-item:last-child {
+    border-bottom: none;
+}
+
+.rc-tip-icon {
+    color: #10b981;
+    font-size: 14px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.rc-tip-item span {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.5;
+}
+
+/* Preview Controls */
+.rc-preview-controls {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rc-controls-left, .rc-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.rc-theme-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rc-theme-preview {
+    font-size: 32px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+}
+
+.rc-current-theme {
+    font-family: 'Poppins', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.rc-theme-preview-desc {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+.rc-theme-premium-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #fef08a 0%, #fde68a 100%);
+    color: #854d0e;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+.rc-zoom-text {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: #1e293b;
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Preview Frame */
+.rc-preview-wrapper {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.rc-preview-frame {
+    width: 100%;
+    min-height: 11in;
+    overflow: auto;
+    padding: 40px;
+    background: #f8fafc;
+    position: relative;
+}
+
+/* Theme Content */
+.rc-theme-content {
+    width: 100%;
+    height: 100%;
+    background: white;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Theme Error */
+.rc-theme-error {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    padding: 40px;
+}
+
+.rc-error-content {
+    text-align: center;
+    max-width: 400px;
+}
+
+.rc-error-icon {
+    font-size: 48px;
+    color: #f59e0b;
+    margin-bottom: 20px;
+}
+
+.rc-theme-error h3 {
+    font-family: 'Poppins', sans-serif;
+    color: #1e293b;
+    margin: 0 0 12px 0;
+}
+
+.rc-theme-error p {
+    color: #64748b;
+    margin: 0 0 24px 0;
+    line-height: 1.6;
+}
+
+/* Page Indicator */
+.rc-page-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+}
+
+.rc-page-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.rc-page-dot {
+    width: 8px;
+    height: 8px;
+    background: #cbd5e1;
+    border-radius: 50%;
+}
+
+.rc-page-dot.active {
+    background: #4361ee;
+}
+
+.rc-page-text {
+    font-size: 14px;
+    color: #64748b;
+}
+
+/* Action Cards */
+.rc-preview-actions {
+    margin-top: 24px;
+}
+
+.rc-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.rc-action-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.rc-action-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.rc-action-edit:hover {
+    border-color: #4361ee;
+}
+
+.rc-action-download:hover {
+    border-color: #10b981;
+}
+
+.rc-action-share:hover {
+    border-color: #8b5cf6;
+}
+
+.rc-action-templates:hover {
+    border-color: #f59e0b;
+}
+
+.rc-action-icon {
+    font-size: 24px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    transition: all 0.2s ease;
+}
+
+.rc-action-edit .rc-action-icon {
+    color: #4361ee;
+}
+
+.rc-action-download .rc-action-icon {
+    color: #10b981;
+}
+
+.rc-action-share .rc-action-icon {
+    color: #8b5cf6;
+}
+
+.rc-action-templates .rc-action-icon {
+    color: #f59e0b;
+}
+
+.rc-action-card:hover .rc-action-icon {
+    transform: scale(1.1);
+}
+
+.rc-action-content {
+    flex: 1;
+}
+
+.rc-action-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.rc-action-desc {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* FAB */
+.rc-fab-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+}
+
+.rc-fab {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    background: #4361ee;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    box-shadow: 0 8px 24px rgba(67, 97, 238, 0.3);
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.rc-fab:hover {
+    background: #3a56d4;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(67, 97, 238, 0.4);
+}
+
+.rc-fab .rc-fab-text {
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.3s ease;
+}
+
+.rc-fab:hover .rc-fab-text {
+    max-width: 200px;
+}
+
+/* Scrollbar Styling */
+.rc-preview-frame::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.rc-preview-frame::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.rc-preview-frame::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.rc-preview-frame::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .rc-preview-nav {
+        padding: 12px 0;
+    }
+    
+    .rc-nav-content {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .rc-nav-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .rc-preview-controls {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .rc-controls-left, .rc-controls-right {
+        justify-content: center;
+    }
+    
+    .rc-action-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .rc-preview-frame {
+        padding: 20px;
+        min-height: auto;
+    }
+    
+    .rc-fab {
+        padding: 16px;
+    }
+    
+    .rc-fab .rc-fab-text {
+        display: none;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .rc-preview-container {
+        background: white;
+    }
+    
+    .rc-preview-nav,
+    .rc-preview-sidebar,
+    .rc-preview-controls,
+    .rc-preview-actions,
+    .rc-fab-container {
+        display: none;
+    }
+    
+    .rc-preview-grid {
+        display: block;
+        margin: 0;
+    }
+    
+    .rc-preview-wrapper {
+        border: none;
+        box-shadow: none;
+        margin: 0;
+    }
+    
+    .rc-preview-frame {
+        padding: 0;
+        min-height: auto;
+        background: white;
+        overflow: visible;
+    }
+    
+    .rc-theme-content {
+        box-shadow: none;
+        margin: 0;
+        width: 100%;
+        page-break-inside: avoid;
+    }
+    
+    @page {
+        margin: 0.5in;
+        size: A4;
+    }
+    
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: white;
+        margin: 0;
+    }
+}
+</style>
 
 <script>
 // Zoom functionality
@@ -1245,7 +1440,7 @@ function shareResume() {
 
 // Download shortcut
 function downloadResume() {
-    window.location.href = `<?= BASE_URL; ?>?page=download&theme=<?= $theme; ?>`;
+    window.location.href = `<?= BASE_URL; ?>?page=download&theme=<?= urlencode($activeTheme['slug']); ?>`;
 }
 
 // Theme switching with smooth transition
