@@ -1,4 +1,22 @@
-/* =====================
+<?php
+require_once __DIR__ . '/auth.php';
+require_once BASE_PATH . '/config/constants.php';
+
+$page_title = $page_title ?? 'Admin Panel';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><?= htmlspecialchars($page_title) ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="admin.css">
+    <style>/* =====================
    Root Variables
 ===================== */
 :root {
@@ -206,3 +224,8 @@ html, body {
         justify-content: center;
     }
 }
+</style>
+</head>
+<body>
+
+<div class="admin-layout">

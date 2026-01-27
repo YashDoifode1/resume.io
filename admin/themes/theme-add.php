@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 session_start();
 
 if (!isset($_SESSION['admin_id'])) {
@@ -40,7 +40,7 @@ if ($ext !== 'php') {
    Rename + Move File
 ========================== */
 $newFileName = 'theme-' . $key . '.php';
-$destination = __DIR__ . '/../themes/' . $newFileName;
+$destination = __DIR__ . '/../../themes/' . $newFileName;
 
 if (!move_uploaded_file($_FILES['theme_file']['tmp_name'], $destination)) {
     exit('Failed to move theme file');

@@ -30,7 +30,7 @@ define('APP_DEBUG', filter_var(env('APP_DEBUG', false), FILTER_VALIDATE_BOOLEAN)
 define('BASE_URL', rtrim(env('BASE_URL'), '/') . '/');
 define('ADMIN_REGISTRATION_ENABLED', filter_var(env('ADMIN_REGISTRATION_ENABLED'), FILTER_VALIDATE_BOOLEAN));
 define('DEFAULT_THEME', env('DEFAULT_THEME', 'modern'));
-
+// define('BASE_PATH', realpath(__DIR__ . '/../'));
 // ==========================================================
 // Root Paths
 // ==========================================================
@@ -214,3 +214,7 @@ define('THEMES_AVAILABLE', [
 // ==========================================================
 // End of Configuration
 // ==========================================================
+// <?php
+// define('SITE_NAME', 'Resume Builder');
+// define('SITE_NAME', env('SITE_NAME', 'Resume Builder'));
+define('ADMIN_URL', '/resume-builder/admin/');

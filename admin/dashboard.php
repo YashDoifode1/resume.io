@@ -1,186 +1,142 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/path.php';
+require_once BASE_PATH . '/config/database.php';
 
-include 'includes/header.php';
-include 'includes/sidebar.php';
+/* Page meta */
+$page_title = 'Dashboard';
+$page_subtitle = 'Overview of your resume builder system';
 
-/* ===============================
-   Dashboard Stats (SAFE QUERIES)
-================================ */
-
-// Total themes
+/* Dashboard stats */
 $totalThemes = $pdo->query("SELECT COUNT(*) FROM themes")->fetchColumn();
+$activeThemes = $pdo->query("SELECT COUNT(*) FROM themes WHERE is_active = 1")->fetchColumn();
 
-// Active themes
-$activeThemes = $pdo->query(
-    "SELECT COUNT(*) FROM themes WHERE is_active = 1"
-)->fetchColumn();
-
-/* ===============================
-   Premium Themes (Safe Check)
-================================ */
 $premiumThemes = 0;
-
-// Check if is_premium column exists
-$columnCheck = $pdo->query("
-    SHOW COLUMNS FROM themes LIKE 'is_premium'
-")->rowCount();
-
-if ($columnCheck > 0) {
-    $premiumThemes = $pdo->query(
-        "SELECT COUNT(*) FROM themes WHERE is_premium = 1"
-    )->fetchColumn();
+$hasPremium = $pdo->query("SHOW COLUMNS FROM themes LIKE 'is_premium'")->rowCount();
+if ($hasPremium) {
+    $premiumThemes = $pdo->query("SELECT COUNT(*) FROM themes WHERE is_premium = 1")->fetchColumn();
 }
+
+/* Layout */
+require_once 'includes/layout.php';
+require_once 'includes/sidebar.php';
 ?>
 
-<div class="admin-content" style="flex:1;">
-    <?php include 'includes/topbar.php'; ?>
+<div class="main">
+    <?php require_once 'includes/header.php'; ?>
 
-    <main class="dashboard">
+    <main class="content">
 
-        <!-- Header -->
-        <div class="dashboard-header">
-            <h1>Dashboard</h1>
-            <p>Overview of your resume builder system</p>
-        </div>
+        <section class="dashboard">
 
-        <!-- Stats -->
-        <div class="stats-grid">
+            <div class="page-head">
+                <h2><?= htmlspecialchars($page_title) ?></h2>
+                <p><?= htmlspecialchars($page_subtitle) ?></p>
+            </div>
 
-            <div class="stat-card">
-                <i class="fas fa-palette"></i>
-                <div>
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <i class="fas fa-palette"></i>
                     <h3><?= $totalThemes ?></h3>
                     <span>Total Themes</span>
                 </div>
-            </div>
 
-            <div class="stat-card success">
-                <i class="fas fa-check-circle"></i>
-                <div>
+                <div class="stat-card success">
+                    <i class="fas fa-check-circle"></i>
                     <h3><?= $activeThemes ?></h3>
                     <span>Active Themes</span>
                 </div>
-            </div>
 
-            <div class="stat-card premium">
-                <i class="fas fa-crown"></i>
-                <div>
+                <div class="stat-card premium">
+                    <i class="fas fa-crown"></i>
                     <h3><?= $premiumThemes ?></h3>
                     <span>Premium Themes</span>
                 </div>
+
             </div>
 
-        </div>
-
-        <!-- Quick Actions -->
-        <section class="quick-actions">
-            <h2>Quick Actions</h2>
-
-            <div class="actions-grid">
-                <a href="themes.php" class="action-card">
-                    <i class="fas fa-palette"></i>
-                    <span>Manage Themes</span>
-                </a>
-
-                <a href="../pages/themes.php" target="_blank" class="action-card">
-                    <i class="fas fa-eye"></i>
-                    <span>View Public Themes</span>
-                </a>
-            </div>
         </section>
 
     </main>
 </div>
 
-<?php include 'includes/footer.php'; ?>
-
-
-<style>
+<?php require_once 'includes/footer.php'; ?>
+<style>/* =====================
+   Dashboard Layout
+===================== */
 .dashboard {
-    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
 }
 
-.dashboard-header h1 {
+/* Page head */
+.page-head h2 {
     margin: 0;
-    font-size: 26px;
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: #0f172a;
 }
 
-.dashboard-header p {
+.page-head p {
+    margin-top: 6px;
+    font-size: 0.9rem;
     color: #64748b;
-    margin-top: 4px;
 }
 
-/* Stats */
+/* =====================
+   Stats Grid
+===================== */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 20px;
-    margin: 30px 0;
 }
 
+/* =====================
+   Stat Card
+===================== */
 .stat-card {
     background: #ffffff;
-    padding: 20px;
     border-radius: 14px;
+    padding: 24px;
     display: flex;
-    align-items: center;
-    gap: 18px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.08);
 }
 
 .stat-card i {
-    font-size: 32px;
-    color: #6366f1;
+    font-size: 1.5rem;
+    color: var(--primary);
 }
 
 .stat-card h3 {
     margin: 0;
-    font-size: 28px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
 }
 
 .stat-card span {
+    font-size: 0.85rem;
     color: #64748b;
-    font-size: 14px;
 }
 
-.stat-card.success i { color: #22c55e; }
-.stat-card.premium i { color: #f59e0b; }
-
-/* Quick Actions */
-.quick-actions h2 {
-    margin-bottom: 16px;
+/* =====================
+   Card Variants
+===================== */
+.stat-card.success i {
+    color: #16a34a;
 }
 
-.actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-}
-
-.action-card {
-    background: #ffffff;
-    padding: 18px;
-    border-radius: 12px;
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    font-weight: 500;
-    transition: .2s;
-    box-shadow: 0 6px 14px rgba(0,0,0,0.04);
-}
-
-.action-card i {
-    font-size: 22px;
-    color: #4f46e5;
-}
-
-.action-card:hover {
-    transform: translateY(-2px);
-}
-
-.action-card.disabled {
-    opacity: .5;
-    pointer-events: none;
+.stat-card.premium i {
+    color: #f59e0b;
 }
 </style>

@@ -1,43 +1,21 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['admin_id'])) {
-    header('Location: login.php');
-    exit;
-}
+// Safety: ensure auth + constants already loaded in layout.php
+$page_title = $page_title ?? 'Admin Panel';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin Panel – Resume Builder</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<header class="header">
+    <div class="header-left">
+        <h1><?= htmlspecialchars($page_title) ?></h1>
+    </div>
 
-    <!-- Admin Base Styles -->
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        }
+    <div class="header-actions">
+        <a href="#" class="icon-link" title="Notifications">
+            <i class="fas fa-bell"></i>
+        </a>
 
-        body {
-            background: #f8fafc;
-            color: #1e293b;
-            display: flex;
-            min-height: 100vh;
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-    </style>
-</head>
-<body>
+        <a href="#" class="icon-link" title="Profile">
+            <i class="fas fa-user-circle"></i>
+        </a>
+    </div>
+</header>
+<style></style>
