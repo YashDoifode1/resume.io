@@ -8,9 +8,24 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/../config/database.php';
+
 // ================= THEME RESOLUTION LOGIC =================
 // Get the requested theme from URL parameter
 $requestedThemeSlug = $_GET['theme'] ?? '';
+
+// Get all available themes for switching dropdown
+try {
+    $allThemesStmt = $pdo->query("
+        SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+        FROM themes 
+        WHERE is_active = 1 
+        ORDER BY is_premium DESC, name ASC
+    ");
+    $allThemes = $allThemesStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $allThemes = [];
+    error_log("Error fetching themes: " . $e->getMessage());
+}
 
 // Default fallback theme slug (should exist in database)
 $defaultThemeSlug = 'modern';
@@ -18,18 +33,25 @@ $activeTheme = null;
 $themeErrorMessage = '';
 
 try {
+    // If theme slug provided, use it; otherwise use session theme or default
+    if (empty($requestedThemeSlug) && isset($_SESSION['active_theme_slug'])) {
+        $requestedThemeSlug = $_SESSION['active_theme_slug'];
+    }
+    
     // Fetch the matching active theme from database
-    $stmt = $pdo->prepare("
-        SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
-        FROM themes 
-        WHERE slug = :slug AND is_active = 1
-        LIMIT 1
-    ");
-    $stmt->execute([':slug' => $requestedThemeSlug]);
-    $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!empty($requestedThemeSlug)) {
+        $stmt = $pdo->prepare("
+            SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
+            FROM themes 
+            WHERE slug = :slug AND is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute([':slug' => $requestedThemeSlug]);
+        $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     // If requested theme not found or not active, fallback to default
-    if (!$activeTheme && !empty($requestedThemeSlug)) {
+    if (!$activeTheme) {
         $stmt = $pdo->prepare("
             SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
             FROM themes 
@@ -39,25 +61,21 @@ try {
         $stmt->execute([':slug' => $defaultThemeSlug]);
         $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($activeTheme) {
+        if ($activeTheme && !empty($requestedThemeSlug)) {
             $themeErrorMessage = "Requested theme not available. Using default theme.";
         }
     }
     
     // If still no theme, fetch first active theme as ultimate fallback
-    if (!$activeTheme) {
-        $stmt = $pdo->query("
-            SELECT id, slug, name, description, icon, file_name, is_active, is_premium 
-            FROM themes 
-            WHERE is_active = 1 
-            ORDER BY id ASC 
-            LIMIT 1
-        ");
-        $activeTheme = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$activeTheme) {
-            throw new Exception("No active themes available in database.");
-        }
+    if (!$activeTheme && !empty($allThemes)) {
+        $activeTheme = $allThemes[0];
+    }
+    
+    // Store active theme in session
+    if ($activeTheme) {
+        $_SESSION['active_theme_slug'] = $activeTheme['slug'];
+    } else {
+        throw new Exception("No active themes available in database.");
     }
     
     // ================= TEMPLATE FILE VALIDATION =================
@@ -122,7 +140,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $step = $_POST['step'] ?? 1;
 
-    if (in_array($action, ['save_step', 'save_personal', 'save_all'])) {
+    if (in_array($action, ['save_step', 'save_personal', 'save_all', 'switch_theme'])) {
+        
+        // Handle theme switching
+        if ($action === 'switch_theme' && isset($_POST['theme_slug'])) {
+            $newThemeSlug = trim($_POST['theme_slug']);
+            $_SESSION['active_theme_slug'] = $newThemeSlug;
+            
+            // Redirect to refresh with new theme
+            echo '<script>window.location.href = "' . BASE_URL . '?page=builder&theme=' . urlencode($newThemeSlug) . '&step=' . $step . '";</script>';
+            exit;
+        }
+        
         // Personal Info (Step 1)
         if (in_array($action, ['save_step', 'save_personal', 'save_all']) && $step == 1) {
             $data['personal'] = [
@@ -262,10 +291,25 @@ $page_description = 'Create your professional resume with ' . htmlspecialchars($
                     <i class="fas fa-crown"></i> Premium
                 </span>
             <?php endif; ?>
-            <div class="theme-actions">
-                <a href="<?php echo BASE_URL; ?>?page=builder" class="btn-theme-switch">
+            
+            <!-- Theme Switcher Dropdown -->
+            <div class="theme-switcher-dropdown">
+                <button class="btn-theme-switch" id="themeSwitchButton">
                     <i class="fas fa-palette"></i> Switch Theme
-                </a>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="theme-dropdown-menu" id="themeDropdown">
+                    <?php foreach ($allThemes as $theme): ?>
+                        <a href="#" class="theme-option <?php echo $theme['slug'] === $activeTheme['slug'] ? 'active' : ''; ?>" 
+                           data-theme-slug="<?php echo htmlspecialchars($theme['slug']); ?>">
+                            <span class="theme-option-icon"><?php echo htmlspecialchars($theme['icon'] ?? '📄'); ?></span>
+                            <span class="theme-option-name"><?php echo htmlspecialchars($theme['name']); ?></span>
+                            <?php if ($theme['is_premium']): ?>
+                                <span class="theme-option-premium">Premium</span>
+                            <?php endif; ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
             </div>
         </div>
         <?php if ($themeErrorMessage): ?>
@@ -786,11 +830,19 @@ $page_description = 'Create your professional resume with ' . htmlspecialchars($
     </div>
 </section>
 
+<!-- Theme Switcher Form (Hidden) -->
+<form id="theme-switcher-form" method="POST" style="display: none;">
+    <input type="hidden" name="action" value="switch_theme">
+    <input type="hidden" name="step" value="<?php echo $current_step; ?>">
+    <input type="hidden" name="theme_slug" id="switch_theme_slug">
+</form>
+
 <!-- Pass data to JavaScript -->
 <script>
 window.resumeData = <?php echo json_encode($data); ?>;
 window.currentStep = <?php echo $current_step; ?>;
 window.activeTheme = <?php echo json_encode($activeTheme); ?>;
+window.allThemes = <?php echo json_encode($allThemes); ?>;
 window.previewScale = 0.85;
 </script>
 
@@ -963,6 +1015,17 @@ function showPreview() {
     goToStep(5);
 }
 
+// Theme switching
+function switchTheme(themeSlug) {
+    if (themeSlug === window.activeTheme.slug) return;
+    
+    showAutoSaveStatus('Switching theme...');
+    
+    // Update the hidden form and submit
+    document.getElementById('switch_theme_slug').value = themeSlug;
+    document.getElementById('theme-switcher-form').submit();
+}
+
 // Preview controls
 function togglePreviewScale() {
     const preview = document.querySelector('.resume-preview .resume-container');
@@ -998,6 +1061,31 @@ function refreshPreview() {
 
 // Dynamic form fields
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize theme switcher dropdown
+    const themeButton = document.getElementById('themeSwitchButton');
+    const themeDropdown = document.getElementById('themeDropdown');
+    
+    if (themeButton && themeDropdown) {
+        themeButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            themeDropdown.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function() {
+            themeDropdown.classList.remove('show');
+        });
+        
+        // Handle theme selection
+        themeDropdown.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const themeSlug = this.getAttribute('data-theme-slug');
+                switchTheme(themeSlug);
+            });
+        });
+    }
+    
     // Add Work Experience
     let workCount = <?php echo count($data['workExperience']); ?>;
     document.getElementById('add-work-experience')?.addEventListener('click', function() {
@@ -1229,6 +1317,11 @@ setInterval(() => {
     font-size: 10px;
 }
 
+/* Theme Switcher Dropdown */
+.theme-switcher-dropdown {
+    position: relative;
+}
+
 .btn-theme-switch {
     background: var(--primary);
     color: white;
@@ -1241,12 +1334,83 @@ setInterval(() => {
     align-items: center;
     gap: 8px;
     transition: var(--transition);
+    border: none;
+    cursor: pointer;
 }
 
 .btn-theme-switch:hover {
     background: var(--primary-dark);
     transform: translateY(-1px);
     box-shadow: var(--shadow);
+}
+
+.btn-theme-switch i.fa-chevron-down {
+    font-size: 10px;
+    transition: transform 0.3s ease;
+}
+
+.theme-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 250px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    margin-top: 5px;
+}
+
+.theme-dropdown-menu.show {
+    display: block;
+}
+
+.theme-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--light-gray);
+    text-decoration: none;
+    color: var(--dark);
+    transition: var(--transition);
+}
+
+.theme-option:hover {
+    background: var(--light);
+}
+
+.theme-option.active {
+    background: rgba(67, 97, 238, 0.1);
+    border-left: 3px solid var(--primary);
+}
+
+.theme-option-icon {
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+}
+
+.theme-option-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.theme-option-premium {
+    background: #fef08a;
+    color: #854d0e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
 }
 
 .theme-warning {
@@ -1868,6 +2032,22 @@ setInterval(() => {
     
     .theme-details {
         min-width: 100%;
+    }
+    
+    .theme-switcher-dropdown {
+        width: 100%;
+    }
+    
+    .btn-theme-switch {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .theme-dropdown-menu {
+        position: relative;
+        right: auto;
+        left: 0;
+        width: 100%;
     }
 }
 

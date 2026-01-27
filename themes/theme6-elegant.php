@@ -1,11 +1,11 @@
 <?php
 /**
- * Elegant Gold Theme - PDF Safe Version
- * Luxury design with gold accents for professionals
+ * Elegant Gold Theme - Preview & PDF Safe Version
+ * FIXED: No body styling, no negative margins, container-safe
  */
 
 if (!isset($data)) {
-    $data = isset($_SESSION['resume_data']) ? $_SESSION['resume_data'] : [];
+    $data = $_SESSION['resume_data'] ?? [];
 }
 
 // Placeholder image function for PDF
@@ -13,28 +13,34 @@ if (!function_exists('getProfileImage')) {
     require_once __DIR__ . '/../utils/placeholder-generator.php';
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Resume PDF</title>
+<title>Resume</title>
+
 <style>
-body {
+/* ==============================
+   MAIN CONTAINER (IMPORTANT FIX)
+   ============================== */
+.resume-document {
     font-family: 'DejaVu Sans', serif;
     font-size: 12px;
     color: #2c2c2c;
     line-height: 1.6;
-    margin: 0;
-    padding: 20px;
     background: #fefef8;
+    padding: 20px;
 }
 
-/* HEADER */
+/* ==============================
+   HEADER
+   ============================== */
 .resume-header {
     background: #1a1a1a;
     color: #f4e4c1;
     padding: 30px;
-    margin: -20px -20px 25px -20px;
+    margin-bottom: 25px;
     border-bottom: 3px solid #d4af37;
 }
 
@@ -69,7 +75,9 @@ body {
     font-weight: 500;
 }
 
-/* CONTACT INFO */
+/* ==============================
+   CONTACT INFO
+   ============================== */
 .contact-info-table {
     width: 100%;
     font-size: 11px;
@@ -80,7 +88,6 @@ body {
     padding-right: 15px;
 }
 
-/* SOCIAL LINKS */
 .social-links a {
     color: #d4af37;
     text-decoration: none;
@@ -88,16 +95,19 @@ body {
     margin-right: 12px;
 }
 
-/* SUMMARY BOX */
+/* ==============================
+   SUMMARY
+   ============================== */
 .summary-box {
     background: #f0ede4;
     padding: 20px;
     border-left: 4px solid #d4af37;
     border-radius: 4px;
-    line-height: 1.6;
 }
 
-/* SECTIONS */
+/* ==============================
+   SECTIONS
+   ============================== */
 .resume-section {
     margin-bottom: 25px;
 }
@@ -113,21 +123,21 @@ body {
 }
 
 .item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    display: table;
+    width: 100%;
     margin-bottom: 2px;
-    gap: 10px;
 }
 
 .item-header h3 {
+    display: table-cell;
     font-size: 12px;
-    margin: 0;
     font-weight: 700;
     color: #1a1a1a;
 }
 
 .date {
+    display: table-cell;
+    text-align: right;
     font-size: 11px;
     color: #666;
     white-space: nowrap;
@@ -137,10 +147,13 @@ body {
 .institute {
     font-size: 11px;
     color: #d4af37;
-    margin: 0 0 4px 0;
     font-weight: 600;
+    margin-bottom: 4px;
 }
 
+/* ==============================
+   SKILLS & LANGUAGES
+   ============================== */
 .skills-container,
 .languages-container {
     display: flex;
@@ -154,63 +167,59 @@ body {
     padding: 5px 10px;
     border-radius: 4px;
     font-size: 11px;
-    color: #1a1a1a;
     border: 1px solid #d4af37;
 }
 
+/* ==============================
+   LINKS
+   ============================== */
 a {
     color: #2c2c2c;
     text-decoration: none;
     font-size: 11px;
 }
-
-@media print {
-    body {
-        padding: 0;
-    }
-    .resume-header {
-        margin: 0;
-    }
-    .profile-image {
-        width: 100px;
-        height: 100px;
-    }
-    .header-text h1 {
-        font-size: 24px;
-    }
-}
 </style>
 </head>
+
 <body>
+
+<div class="resume-document">
 
 <!-- HEADER -->
 <div class="resume-header">
     <table class="header-table">
         <tr>
-            <td width="130">
+            <td width="140">
                 <?php if (!empty($data['personal']['profilePicture'])): ?>
-                    <img src="<?php echo getProfileImage($data['personal']['profilePicture'] ?? '', $data['personal']['fullName'] ?? 'User'); ?>" class="profile-image">
+                    <img src="<?= getProfileImage(
+                        $data['personal']['profilePicture'],
+                        $data['personal']['fullName'] ?? 'User'
+                    ); ?>" class="profile-image">
                 <?php endif; ?>
             </td>
             <td>
                 <div class="header-text">
-                    <h1><?php echo htmlspecialchars($data['personal']['fullName'] ?? 'Your Name'); ?></h1>
-                    <p class="job-title"><?php echo htmlspecialchars($data['personal']['jobTitle'] ?? 'Job Title'); ?></p>
-                    
+                    <h1><?= htmlspecialchars($data['personal']['fullName'] ?? 'Your Name'); ?></h1>
+                    <p class="job-title"><?= htmlspecialchars($data['personal']['jobTitle'] ?? 'Job Title'); ?></p>
+
                     <table class="contact-info-table">
                         <tr>
                             <?php if (!empty($data['personal']['email'])): ?>
-                                <td><?php echo htmlspecialchars($data['personal']['email']); ?></td>
+                                <td><?= htmlspecialchars($data['personal']['email']); ?></td>
                             <?php endif; ?>
                             <?php if (!empty($data['personal']['phone'])): ?>
-                                <td><?php echo htmlspecialchars($data['personal']['phone']); ?></td>
+                                <td><?= htmlspecialchars($data['personal']['phone']); ?></td>
                             <?php endif; ?>
                         </tr>
                     </table>
 
                     <p class="social-links">
-                        <?php if (!empty($data['personal']['website'])): ?><a href="<?php echo htmlspecialchars($data['personal']['website']); ?>">Website</a><?php endif; ?>
-                        <?php if (!empty($data['personal']['linkedin'])): ?><a href="<?php echo htmlspecialchars($data['personal']['linkedin']); ?>">LinkedIn</a><?php endif; ?>
+                        <?php if (!empty($data['personal']['website'])): ?>
+                            <a><?= htmlspecialchars($data['personal']['website']); ?></a>
+                        <?php endif; ?>
+                        <?php if (!empty($data['personal']['linkedin'])): ?>
+                            <a><?= htmlspecialchars($data['personal']['linkedin']); ?></a>
+                        <?php endif; ?>
                     </p>
                 </div>
             </td>
@@ -218,30 +227,33 @@ a {
     </table>
 </div>
 
-<!-- PROFESSIONAL SUMMARY -->
+<!-- SUMMARY -->
 <?php if (!empty($data['personal']['profileSummary'])): ?>
 <div class="resume-section">
     <div class="summary-box">
-        <?php echo nl2br(htmlspecialchars($data['personal']['profileSummary'])); ?>
+        <?= nl2br(htmlspecialchars($data['personal']['profileSummary'])); ?>
     </div>
 </div>
 <?php endif; ?>
 
-<!-- WORK EXPERIENCE -->
+<!-- EXPERIENCE -->
 <?php if (!empty($data['workExperience'])): ?>
 <div class="resume-section">
     <h2>Professional Experience</h2>
     <?php foreach ($data['workExperience'] as $exp): ?>
-    <div class="experience-item">
-        <div class="item-header">
-            <h3><?php echo htmlspecialchars($exp['jobRole'] ?? ''); ?></h3>
-            <span class="date"><?php echo htmlspecialchars($exp['startDate'] ?? ''); ?> – <?php echo htmlspecialchars($exp['endDate'] ?? ''); ?></span>
+        <div>
+            <div class="item-header">
+                <h3><?= htmlspecialchars($exp['jobRole'] ?? ''); ?></h3>
+                <span class="date">
+                    <?= htmlspecialchars($exp['startDate'] ?? ''); ?> –
+                    <?= htmlspecialchars($exp['endDate'] ?? ''); ?>
+                </span>
+            </div>
+            <p class="company"><?= htmlspecialchars($exp['company'] ?? ''); ?></p>
+            <?php if (!empty($exp['responsibilities'])): ?>
+                <p><?= nl2br(htmlspecialchars($exp['responsibilities'])); ?></p>
+            <?php endif; ?>
         </div>
-        <p class="company"><?php echo htmlspecialchars($exp['company'] ?? ''); ?></p>
-        <?php if (!empty($exp['responsibilities'])): ?>
-            <p><?php echo nl2br(htmlspecialchars($exp['responsibilities'])); ?></p>
-        <?php endif; ?>
-    </div>
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -251,13 +263,16 @@ a {
 <div class="resume-section">
     <h2>Education</h2>
     <?php foreach ($data['education'] as $edu): ?>
-    <div class="education-item">
-        <div class="item-header">
-            <h3><?php echo htmlspecialchars($edu['degree'] ?? ''); ?></h3>
-            <span class="date"><?php echo htmlspecialchars($edu['startYear'] ?? ''); ?> – <?php echo htmlspecialchars($edu['endYear'] ?? ''); ?></span>
+        <div>
+            <div class="item-header">
+                <h3><?= htmlspecialchars($edu['degree'] ?? ''); ?></h3>
+                <span class="date">
+                    <?= htmlspecialchars($edu['startYear'] ?? ''); ?> –
+                    <?= htmlspecialchars($edu['endYear'] ?? ''); ?>
+                </span>
+            </div>
+            <p class="institute"><?= htmlspecialchars($edu['institute'] ?? ''); ?></p>
         </div>
-        <p class="institute"><?php echo htmlspecialchars($edu['institute'] ?? ''); ?></p>
-    </div>
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -268,7 +283,7 @@ a {
     <h2>Core Competencies</h2>
     <div class="skills-container">
         <?php foreach ($data['skills'] as $skill): ?>
-        <span class="skill-badge"><?php echo htmlspecialchars($skill['skillName'] ?? ''); ?></span>
+            <span class="skill-badge"><?= htmlspecialchars($skill['skillName']); ?></span>
         <?php endforeach; ?>
     </div>
 </div>
@@ -279,12 +294,12 @@ a {
 <div class="resume-section">
     <h2>Notable Projects</h2>
     <?php foreach ($data['projects'] as $project): ?>
-    <div class="project-item">
-        <h3><?php echo htmlspecialchars($project['projectName'] ?? ''); ?></h3>
-        <?php if (!empty($project['description'])): ?>
-            <p><?php echo nl2br(htmlspecialchars($project['description'])); ?></p>
-        <?php endif; ?>
-    </div>
+        <div>
+            <h3><?= htmlspecialchars($project['projectName']); ?></h3>
+            <?php if (!empty($project['description'])): ?>
+                <p><?= nl2br(htmlspecialchars($project['description'])); ?></p>
+            <?php endif; ?>
+        </div>
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -294,10 +309,10 @@ a {
 <div class="resume-section">
     <h2>Certifications & Awards</h2>
     <?php foreach ($data['certifications'] as $cert): ?>
-    <div class="certification-item">
-        <h3><?php echo htmlspecialchars($cert['certificateTitle'] ?? ''); ?></h3>
-        <p><?php echo htmlspecialchars($cert['issuedBy'] ?? ''); ?> • <?php echo htmlspecialchars($cert['year'] ?? ''); ?></p>
-    </div>
+        <div>
+            <h3><?= htmlspecialchars($cert['certificateTitle']); ?></h3>
+            <p><?= htmlspecialchars($cert['issuedBy']); ?> • <?= htmlspecialchars($cert['year']); ?></p>
+        </div>
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -308,11 +323,15 @@ a {
     <h2>Languages</h2>
     <div class="languages-container">
         <?php foreach ($data['languages'] as $lang): ?>
-        <span class="language-item"><?php echo htmlspecialchars($lang['languageName'] ?? ''); ?> - <?php echo htmlspecialchars($lang['proficiency'] ?? ''); ?></span>
+            <span class="language-item">
+                <?= htmlspecialchars($lang['languageName']); ?> —
+                <?= htmlspecialchars($lang['proficiency']); ?>
+            </span>
         <?php endforeach; ?>
     </div>
 </div>
 <?php endif; ?>
 
+</div>
 </body>
 </html>

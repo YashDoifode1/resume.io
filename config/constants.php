@@ -16,6 +16,39 @@ define('ADMIN_REGISTRATION_ENABLED', true);
 
 require_once __DIR__ . '/db.php';
 
+
+// config/constants.php
+
+// Base URLs and paths
+// define('BASE_URL', 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/');
+ define('BASE_PATH', dirname(__DIR__) . '/');
+// define('THEMES_PATH', dirname(__DIR__) . '/themes/');
+// define('ASSETS_PATH', BASE_PATH . 'assets/');
+
+// Database configuration
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'resume_builder');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+
+// Default theme
+define('DEFAULT_THEME', 'modern');
+
+// Session configuration
+// define('SESSION_TIMEOUT', 3600); // 1 hour
+
+// File upload configuration
+define('MAX_FILE_SIZE', 2 * 1024 * 1024); // 2MB
+define('ALLOWED_IMAGE_TYPES', ['jpg', 'jpeg', 'png', 'gif']);
+// define('UPLOADS_PATH', BASE_PATH . 'uploads/');
+
+// PDF configuration
+define('PDF_DEFAULT_FONT', 'DejaVu Sans');
+define('PDF_DPI', 96);
+define('PDF_PAPER_SIZE', 'A4');
+define('PDF_ORIENTATION', 'portrait');
+
+
 // Application Settings
 // ============================================
 // Site Information

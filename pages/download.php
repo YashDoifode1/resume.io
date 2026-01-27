@@ -24,17 +24,16 @@ if (!isset($_SESSION['resume_data'])) {
 }
 
 $data = $_SESSION['resume_data'];
-$theme = isset($_GET['theme']) ? sanitize_input($_GET['theme']) : 'classic';
+$theme = isset($_GET['theme']) ? sanitize_input($_GET['theme']) : 'modern';
 
-// Validate theme - all themes
-$validThemes = ['classic', 'modern', 'corporate', 'creative', 'dark', 'elegant', 'tech', 'minimal', 'vibrant', 'executive', 'gradient', 'sidebar', 'minimalist', 'colorful', 'timeline'];
+// Validate theme - ONLY EXISTING THEMES
+$validThemes = ['modern', 'corporate', 'creative', 'dark', 'elegant', 'tech', 'minimal', 'vibrant', 'executive', 'gradient', 'sidebar', 'minimalist', 'colorful', 'timeline'];
 if (!in_array($theme, $validThemes)) {
-    $theme = 'classic';
+    $theme = 'modern'; // Default to modern instead of classic
 }
 
-// Map theme names to files
+// Map theme names to files - REMOVED NON-EXISTENT THEME1
 $themeFiles = [
-    'classic' => 'theme1-classic.php',
     'modern' => 'theme2-modern.php',
     'corporate' => 'theme3-corporate.php',
     'creative' => 'theme4-creative.php',
@@ -81,16 +80,41 @@ $profilePictureUrl = getProfilePictureForPDF($data['personal']['profilePicture']
 $data['personal']['pdfProfilePicture'] = $profilePictureUrl;
 
 try {
-    // Generate HTML content from theme
+    // Check if theme file exists
+    if (!isset($themeFiles[$theme])) {
+        throw new Exception("Theme '$theme' is not available. Using default modern theme.");
+    }
+    
     $themeFile = THEMES_PATH . $themeFiles[$theme];
     
     if (!file_exists($themeFile)) {
-        throw new Exception("Theme file not found: " . $themeFile);
+        // Try to find a working theme
+        $fallbackFound = false;
+        foreach ($themeFiles as $fallbackTheme => $fallbackFile) {
+            $fallbackPath = THEMES_PATH . $fallbackFile;
+            if (file_exists($fallbackPath)) {
+                $theme = $fallbackTheme;
+                $themeFile = $fallbackPath;
+                $fallbackFound = true;
+                error_log("Original theme file not found. Using fallback: $fallbackTheme");
+                break;
+            }
+        }
+        
+        if (!$fallbackFound) {
+            throw new Exception("No valid theme files found in themes directory.");
+        }
     }
     
+    // Generate HTML content from theme
     ob_start();
+    $data['personal']['processedProfilePicture'] = $profilePictureUrl;
     include $themeFile;
     $themeHtml = ob_get_clean();
+    
+    if (empty($themeHtml) || trim($themeHtml) === '') {
+        throw new Exception("Theme template generated empty content.");
+    }
     
     // Create complete HTML document with proper styling
     $html = '<!DOCTYPE html>
@@ -98,6 +122,7 @@ try {
     <head>
         <meta charset="UTF-8">
         <title>' . htmlspecialchars($data['personal']['fullName'] ?? 'Resume') . ' - Resume</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
             /* Reset and base styles */
             * { 
@@ -122,11 +147,11 @@ try {
             
             /* Page container */
             .resume-container {
-                max-width: 8.5in;
-                min-height: 11in;
-                margin: 0 auto;
+                width: 8.3in;
+                min-height: 11.7in;
+                padding: 0.5in;
                 background: white;
-                position: relative;
+                margin: 0 auto;
             }
             
             /* Utility classes */
@@ -294,14 +319,14 @@ try {
                 body {
                     margin: 0 !important;
                     padding: 0 !important;
-                    width: 8.5in;
+                    width: 100%;
                 }
                 
                 .resume-container {
                     width: 100%;
                     max-width: 100%;
                     margin: 0;
-                    padding: 20px;
+                    padding: 0.5in;
                     box-shadow: none;
                 }
                 
@@ -324,6 +349,7 @@ try {
             img {
                 max-width: 100%;
                 height: auto;
+                display: block;
             }
             
             /* Ensure background colors print */
@@ -332,10 +358,27 @@ try {
                 color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
+            
+            /* Specific fixes for themes */
+            .theme-content {
+                width: 100%;
+                height: 100%;
+            }
+            
+            /* Clear floats */
+            .clearfix::after {
+                content: "";
+                clear: both;
+                display: table;
+            }
         </style>
     </head>
     <body>
-        <div class="resume-container">' . $themeHtml . '</div>
+        <div class="resume-container">
+            <div class="theme-content">
+                ' . $themeHtml . '
+            </div>
+        </div>
     </body>
     </html>';
 
@@ -508,18 +551,12 @@ try {
                     <li>Clear your browser cache and try again</li>
                 </ol>
                 
-                ' . (strpos($e->getMessage(), 'DOMPDF') !== false ? '
                 <div class="debug-info">
-                    <strong>DOMPDF Issue Detected:</strong><br>
-                    This usually means the PDF library needs configuration. Contact the administrator.
-                </div>' : '') . '
-                
-                ' . (strpos($e->getMessage(), 'theme') !== false ? '
-                <div class="debug-info">
-                    <strong>Theme Issue:</strong><br>
-                    Selected theme: ' . htmlspecialchars($theme) . '<br>
-                    Theme file: ' . htmlspecialchars($themeFile ?? 'Not found') . '
-                </div>' : '') . '
+                    <strong>Debug Information:</strong><br>
+                    Selected Theme: ' . htmlspecialchars($theme) . '<br>
+                    Theme File: ' . htmlspecialchars($themeFile ?? 'Not found') . '<br>
+                    Available Themes: ' . implode(', ', array_keys($themeFiles)) . '
+                </div>
             </div>
             
             <div class="action-buttons">
@@ -549,3 +586,4 @@ try {
 function sanitize_input($input) {
     return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
 }
+?>
