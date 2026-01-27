@@ -1,4 +1,5 @@
 <?php
+$app_url = 'http://localhost/resume-builder/'; // change to your domain
 $current = basename($_SERVER['PHP_SELF']);
 $adminName = $_SESSION['admin_name'] ?? 'Administrator';
 ?>
@@ -11,18 +12,18 @@ $adminName = $_SESSION['admin_name'] ?? 'Administrator';
     </div>
 
     <nav class="sidebar-nav">
-        <a href="dashboard.php" class="<?= $current === 'dashboard.php' ? 'active' : '' ?>">
+        <a href="<?= $app_url ?>admin/dashboard.php" class="<?= $current === 'dashboard.php' ? 'active' : '' ?>">
             <i class="fas fa-chart-line"></i>
             <span>Dashboard</span>
         </a>
 
-        <a href="themes/themes.php" class="<?= $current === 'themes.php' ? 'active' : '' ?>">
+        <a href="<?= $app_url ?>admin/themes/themes.php" class="<?= $current === 'themes.php' ? 'active' : '' ?>">
             <i class="fas fa-palette"></i>
             <span>Themes</span>
         </a>
 
-        <a href="settings.php" class="<?= $current === 'settings.php' ? 'active' : '' ?>">
-            <i class="fas fa-settings"></i>
+        <a href="<?= $app_url ?>admin/settings.php" class="<?= $current === 'settings.php' ? 'active' : '' ?>">
+            <i class="fas fa-cog"></i>
             <span>settings</span>
         </a>
     </nav>
